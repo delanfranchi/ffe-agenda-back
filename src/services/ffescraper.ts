@@ -60,17 +60,13 @@ export class FFEScraper {
         tournamentId
       );
 
-      // Récupérer la liste des joueurs
-      const playersResponse = await fetch(playersUrl, {
-        headers: {
-          "User-Agent": this.userAgent,
-        },
-      });
-
+      // Récupérer la liste des joueurs (optionnel)
       let players: Player[] = [];
-      if (playersResponse.ok) {
-        const playersHtml = await playersResponse.text();
-        players = this.parsePlayersList(playersHtml);
+      try {
+        players = await this.getTournamentPlayers(tournamentId);
+      } catch (error) {
+        // Si la récupération des joueurs échoue, continuer sans joueurs
+        // Pas de log pour éviter de flooder
       }
 
       return {
@@ -103,17 +99,15 @@ export class FFEScraper {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        // Si la page n'existe pas (404) ou autre erreur, retourner une liste vide
+        return [];
       }
 
       const html = await response.text();
       return this.parsePlayersList(html);
     } catch (error) {
-      console.error(
-        `Error fetching players for tournament ${tournamentId}:`,
-        error
-      );
-      throw error;
+      // Erreur silencieuse, retourner une liste vide
+      return [];
     }
   }
 
