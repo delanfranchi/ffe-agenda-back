@@ -24,6 +24,7 @@ export async function GET(
       return NextResponse.json<ApiResponse<null>>(
         {
           success: false,
+          data: null,
           error: "Tournament ID is required",
           lastUpdated: new Date().toISOString(),
         },
@@ -45,6 +46,7 @@ export async function GET(
     return NextResponse.json<ApiResponse<null>>(
       {
         success: false,
+        data: null,
         error: error instanceof Error ? error.message : "Internal server error",
         lastUpdated: new Date().toISOString(),
       },
