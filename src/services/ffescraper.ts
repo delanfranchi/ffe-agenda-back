@@ -93,7 +93,7 @@ export class FFEScraper {
    * Récupère uniquement la liste des joueurs d'un tournoi
    */
   async getTournamentPlayers(tournamentId: string): Promise<Player[]> {
-    const playersUrl = `${this.baseUrl}/ListeInscrits.aspx?Ref=${tournamentId}`;
+    const playersUrl = `${this.baseUrl}/Resultats.aspx?URL=Tournois/Id/${tournamentId}/${tournamentId}&Action=Ls`;
 
     try {
       const response = await fetch(playersUrl, {
