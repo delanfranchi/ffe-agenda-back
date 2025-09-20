@@ -70,15 +70,16 @@ export const revalidate = 50400;
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const tournamentId = params.id;
+    const { id: tournamentId } = await params;
 
     if (!tournamentId) {
       return NextResponse.json<ApiResponse<null>>(
         {
           success: false,
+          data: null,
           error: "Tournament ID is required",
           lastUpdated: new Date().toISOString(),
         },
@@ -100,6 +101,7 @@ export async function GET(
     return NextResponse.json<ApiResponse<null>>(
       {
         success: false,
+        data: null,
         error: error instanceof Error ? error.message : "Internal server error",
         lastUpdated: new Date().toISOString(),
       },

@@ -23,39 +23,39 @@
           "id": {
             "type": "string",
             "description": "Identifiant unique du tournoi",
-            "example": "12345"
+            "example": "68608"
           },
           "name": {
             "type": "string",
             "description": "Nom du tournoi",
-            "example": "Open de Paris 2024"
+            "example": "Tournoi Vétérans + 55 ans N°4 2025 - 2026"
           },
           "date": {
             "type": "string",
             "format": "date",
             "description": "Date du tournoi au format ISO",
-            "example": "2024-03-15T00:00:00.000Z"
+            "example": "2026-04-24T00:00:00.000Z"
           },
           "endDate": {
             "type": "string",
             "format": "date",
             "description": "Date de fin du tournoi (optionnel)",
-            "example": "2024-03-17T00:00:00.000Z"
+            "example": "2026-04-26T00:00:00.000Z"
           },
           "location": {
             "type": "string",
             "description": "Ville du tournoi",
-            "example": "Paris"
+            "example": "TOURS"
           },
           "department": {
             "type": "integer",
             "description": "Numéro du département",
-            "example": 75
+            "example": 37
           },
           "type": {
             "type": "string",
             "description": "Type de tournoi",
-            "example": "tournoi"
+            "example": "CVL"
           },
           "status": {
             "type": "string",
@@ -81,13 +81,13 @@
             "type": "string",
             "format": "date",
             "description": "Date limite d'inscription",
-            "example": "2024-03-10T00:00:00.000Z"
+            "example": "2026-04-10T00:00:00.000Z"
           },
           "url": {
             "type": "string",
             "format": "uri",
             "description": "URL vers la fiche du tournoi sur le site FFE",
-            "example": "https://www.echecs.asso.fr/FicheTournoi.aspx?Ref=12345"
+            "example": "https://www.echecs.asso.fr/FicheTournoi.aspx?Ref=68608"
           },
           "players": {
             "type": "array",
@@ -129,7 +129,7 @@
           "club": {
             "type": "string",
             "description": "Club du joueur",
-            "example": "Club d'Echecs de Paris"
+            "example": "Club d'Echecs de Tours"
           },
           "elo": {
             "type": "integer",
@@ -178,7 +178,7 @@
             "type": "string",
             "format": "date-time",
             "description": "Timestamp de la dernière mise à jour des données",
-            "example": "2024-03-01T10:30:00.000Z"
+            "example": "2025-09-20T08:04:23.941Z"
           }
         },
         "required": [
@@ -211,7 +211,7 @@
             "type": "string",
             "format": "date-time",
             "description": "Timestamp de la dernière mise à jour",
-            "example": "2024-03-01T10:30:00.000Z"
+            "example": "2025-09-20T08:04:23.941Z"
           }
         },
         "required": [
@@ -238,53 +238,13 @@
             "type": "string",
             "format": "date-time",
             "description": "Timestamp de la dernière mise à jour",
-            "example": "2024-03-01T10:30:00.000Z"
+            "example": "2025-09-20T08:04:23.941Z"
           }
         },
         "required": [
           "tournament",
           "players",
           "lastUpdated"
-        ]
-      },
-      "ChessAgendaProps": {
-        "type": "object",
-        "properties": {
-          "departements": {
-            "type": "array",
-            "items": {
-              "type": "integer"
-            },
-            "description": "Liste des numéros de départements à afficher",
-            "example": [
-              37,
-              41
-            ]
-          },
-          "club": {
-            "type": "string",
-            "description": "Nom du club pour filtrer les tournois",
-            "example": "Club de Paris"
-          },
-          "limit": {
-            "type": "integer",
-            "description": "Nombre maximum de tournois à afficher",
-            "example": 10
-          },
-          "showOnlyClub": {
-            "type": "boolean",
-            "description": "Afficher seulement les tournois où des joueurs du club sont inscrits",
-            "example": false
-          },
-          "apiBaseUrl": {
-            "type": "string",
-            "format": "uri",
-            "description": "URL de base de l'API (optionnel)",
-            "example": "https://api.example.com"
-          }
-        },
-        "required": [
-          "departements"
         ]
       },
       "Error": {
@@ -303,7 +263,7 @@
             "type": "string",
             "format": "date-time",
             "description": "Timestamp de l'erreur",
-            "example": "2024-03-01T10:30:00.000Z"
+            "example": "2025-09-20T08:04:23.941Z"
           }
         },
         "required": [
@@ -312,6 +272,498 @@
           "lastUpdated"
         ]
       }
+    },
+    "parameters": {
+      "Department": {
+        "name": "department",
+        "in": "query",
+        "description": "Numéro du département",
+        "required": true,
+        "schema": {
+          "type": "integer",
+          "example": 37
+        }
+      },
+      "DepartmentArray": {
+        "name": "department[]",
+        "in": "query",
+        "description": "Numéros des départements (peut être répété)",
+        "required": true,
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "example": [
+            37,
+            41
+          ]
+        }
+      },
+      "TournamentId": {
+        "name": "id",
+        "in": "path",
+        "description": "Identifiant unique du tournoi",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "example": "68608"
+        }
+      },
+      "Limit": {
+        "name": "limit",
+        "in": "query",
+        "description": "Nombre maximum de résultats à retourner",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 50,
+          "example": 10
+        }
+      },
+      "Offset": {
+        "name": "offset",
+        "in": "query",
+        "description": "Nombre de résultats à ignorer (pour la pagination)",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0,
+          "example": 0
+        }
+      },
+      "Next": {
+        "name": "next",
+        "in": "query",
+        "description": "Filtrer pour ne retourner que les événements à venir",
+        "required": false,
+        "schema": {
+          "type": "boolean",
+          "default": false,
+          "example": true
+        }
+      },
+      "Club": {
+        "name": "club",
+        "in": "query",
+        "description": "Nom du club pour filtrer les tournois",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "example": "Club de Tours"
+        }
+      },
+      "ShowOnlyClub": {
+        "name": "showOnlyClub",
+        "in": "query",
+        "description": "Afficher seulement les tournois où des joueurs du club sont inscrits",
+        "required": false,
+        "schema": {
+          "type": "boolean",
+          "default": false,
+          "example": true
+        }
+      }
     }
-  }
+  },
+  "paths": {
+    "/api/agenda": {
+      "get": {
+        "summary": "Récupère la liste des tournois d'échecs",
+        "description": "Retourne la liste des tournois d'échecs pour les départements spécifiés, avec possibilité de filtrage par club et événements futurs",
+        "tags": [
+          "Agenda"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/DepartmentArray"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Club"
+          },
+          {
+            "$ref": "#/components/parameters/ShowOnlyClub"
+          },
+          {
+            "$ref": "#/components/parameters/Next"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Liste des tournois récupérée avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/Tournament"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "success": true,
+                  "data": [
+                    {
+                      "id": "68608",
+                      "name": "Tournoi Vétérans + 55 ans N°4 2025 - 2026",
+                      "date": "2026-04-24T00:00:00.000Z",
+                      "location": "TOURS",
+                      "department": 37,
+                      "type": "CVL",
+                      "status": "registration",
+                      "url": "https://www.echecs.asso.fr/FicheTournoi.aspx?Ref=68608"
+                    }
+                  ],
+                  "lastUpdated": "2025-09-20T08:04:23.941Z"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Paramètres de requête invalides",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": "department[] parameter is required",
+                  "lastUpdated": "2025-09-20T08:04:23.941Z"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erreur interne du serveur",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": "Internal server error",
+                  "lastUpdated": "2025-09-20T08:04:23.941Z"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tournaments/{id}/players": {
+      "get": {
+        "summary": "Récupère la liste des joueurs d'un tournoi",
+        "description": "Retourne la liste des joueurs inscrits à un tournoi d'échecs spécifique",
+        "tags": [
+          "Players"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TournamentId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Liste des joueurs récupérée avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/Player"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "success": true,
+                  "data": [
+                    {
+                      "id": "jean-dupont",
+                      "name": "Dupont",
+                      "firstName": "Jean",
+                      "club": "Club d'Echecs de Paris",
+                      "elo": 1650,
+                      "category": "A",
+                      "isRegistered": true
+                    },
+                    {
+                      "id": "marie-martin",
+                      "name": "Martin",
+                      "firstName": "Marie",
+                      "club": "Club d'Echecs de Lyon",
+                      "elo": 1420,
+                      "category": "B",
+                      "isRegistered": true
+                    }
+                  ],
+                  "lastUpdated": "2024-03-01T10:30:00.000Z"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "ID de tournoi manquant ou invalide",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": "Tournament ID is required",
+                  "lastUpdated": "2024-03-01T10:30:00.000Z"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erreur interne du serveur",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": "Internal server error",
+                  "lastUpdated": "2024-03-01T10:30:00.000Z"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tournaments/{id}": {
+      "get": {
+        "summary": "Récupère les détails d'un tournoi spécifique",
+        "description": "Retourne les informations détaillées d'un tournoi d'échecs, y compris la liste des joueurs inscrits",
+        "tags": [
+          "Tournaments"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TournamentId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Détails du tournoi récupérés avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/TournamentDetailsResponse"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "tournament": {
+                      "id": "68608",
+                      "name": "Tournoi Vétérans + 55 ans N°4 2025 - 2026",
+                      "date": "2026-04-24T00:00:00.000Z",
+                      "endDate": "2026-04-26T00:00:00.000Z",
+                      "location": "TOURS",
+                      "department": 37,
+                      "type": "CVL",
+                      "status": "registration",
+                      "maxPlayers": 64,
+                      "currentPlayers": 32,
+                      "url": "https://www.echecs.asso.fr/FicheTournoi.aspx?Ref=68608"
+                    },
+                    "players": [
+                      {
+                        "id": "jean-dupont",
+                        "name": "Dupont",
+                        "firstName": "Jean",
+                        "club": "Club d'Echecs de Tours",
+                        "elo": 1650,
+                        "category": "A",
+                        "isRegistered": true
+                      }
+                    ],
+                    "lastUpdated": "2025-09-20T08:04:23.941Z"
+                  },
+                  "lastUpdated": "2025-09-20T08:04:23.941Z"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "ID de tournoi manquant ou invalide",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": "Tournament ID is required",
+                  "lastUpdated": "2025-09-20T08:04:23.941Z"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erreur interne du serveur",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": "Internal server error",
+                  "lastUpdated": "2025-09-20T08:04:23.941Z"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tournaments": {
+      "get": {
+        "summary": "Récupère la liste des tournois d'échecs avec pagination",
+        "description": "Retourne la liste des tournois d'échecs pour les départements spécifiés, avec support de la pagination et filtrage par événements futurs",
+        "tags": [
+          "Tournaments"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Department"
+          },
+          {
+            "$ref": "#/components/parameters/DepartmentArray"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Offset"
+          },
+          {
+            "$ref": "#/components/parameters/Next"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Liste des tournois récupérée avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/TournamentListResponse"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "tournaments": [
+                      {
+                        "id": "68608",
+                        "name": "Tournoi Vétérans + 55 ans N°4 2025 - 2026",
+                        "date": "2026-04-24T00:00:00.000Z",
+                        "location": "TOURS",
+                        "department": 37,
+                        "type": "CVL",
+                        "status": "registration",
+                        "url": "https://www.echecs.asso.fr/FicheTournoi.aspx?Ref=68608"
+                      }
+                    ],
+                    "total": 25,
+                    "department": 37,
+                    "lastUpdated": "2025-09-20T08:04:23.941Z"
+                  },
+                  "lastUpdated": "2024-03-01T10:30:00.000Z"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Paramètres de requête invalides",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": "Department parameter is required",
+                  "lastUpdated": "2025-09-20T08:04:23.941Z"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erreur interne du serveur",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": "Internal server error",
+                  "lastUpdated": "2025-09-20T08:04:23.941Z"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "tags": []
 }

@@ -55,7 +55,7 @@ export default function Home() {
               <strong>department[] :</strong> Paramètre répété pour chaque département (ex: department[]=37&department[]=41&department[]=36)
             </div>
             <div>
-              <strong>club :</strong> Nom du club à filtrer (ex: "Echiquier Tourangeau")
+              <strong>club :</strong> Nom du club à filtrer (ex: &quot;Echiquier Tourangeau&quot;)
             </div>
             <div>
               <strong>limit :</strong> Nombre maximum de résultats (défaut: 10)
