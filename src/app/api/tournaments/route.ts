@@ -5,9 +5,6 @@ import { ApiResponse, Tournament, TournamentListResponse } from "@/types/chess";
 // Cache pour 20 heures (72000 secondes)
 export const revalidate = 72000;
 
-// Forcer le rendu dynamique car on utilise request.url
-export const dynamic = 'force-dynamic';
-
 /**
  * API pour récupérer la liste des tournois d'échecs avec pagination
  *
@@ -68,21 +65,25 @@ export async function GET(request: NextRequest) {
     }
 
     const scraper = new FFEScraper();
-    const allTournaments: Tournament[] = [];
 
-    // Récupérer les tournois pour chaque département
-    for (const dept of departmentNumbers) {
-      try {
-        const tournaments = await scraper.getTournamentsByDepartment(dept);
-        allTournaments.push(...tournaments);
-      } catch (error) {
+    // Récupérer les tournois pour chaque département en parallèle
+    const tournamentPromises = departmentNumbers.map((dept) =>
+      scraper.getTournamentsByDepartment(dept)
+    );
+    const tournamentResults = await Promise.allSettled(tournamentPromises);
+
+    const allTournaments: Tournament[] = [];
+    tournamentResults.forEach((result, index) => {
+      if (result.status === "fulfilled") {
+        allTournaments.push(...result.value);
+      } else {
         console.error(
-          `Error fetching tournaments for department ${dept}:`,
-          error
+          `Error fetching tournaments for department ${departmentNumbers[index]}:`,
+          result.reason
         );
         // Continuer avec les autres départements même si un échoue
       }
-    }
+    });
 
     // Filtrer les événements à venir si next=true
     let filteredTournaments = allTournaments;

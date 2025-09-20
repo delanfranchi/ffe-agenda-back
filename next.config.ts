@@ -20,7 +20,7 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        source: "/api/(.*)",
+        source: "/api/tournaments",
         headers: [
           {
             key: "Access-Control-Allow-Origin",
@@ -33,6 +33,31 @@ const nextConfig: NextConfig = {
           {
             key: "Access-Control-Allow-Headers",
             value: "Content-Type, Authorization",
+          },
+          {
+            key: "Cache-Control",
+            value: "public, s-maxage=36000, stale-while-revalidate=72000",
+          },
+        ],
+      },
+      {
+        source: "/api/tournaments/(.*)",
+        headers: [
+          {
+            key: "Access-Control-Allow-Origin",
+            value: "*",
+          },
+          {
+            key: "Access-Control-Allow-Methods",
+            value: "GET, POST, PUT, DELETE, OPTIONS",
+          },
+          {
+            key: "Access-Control-Allow-Headers",
+            value: "Content-Type, Authorization",
+          },
+          {
+            key: "Cache-Control",
+            value: "public, s-maxage=25200, stale-while-revalidate=50400",
           },
         ],
       },
