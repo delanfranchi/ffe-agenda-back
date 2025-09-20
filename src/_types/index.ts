@@ -4,12 +4,16 @@ export interface Tournament {
   id: string;
   name: string;
   date: string; // ISO format
+  endDate?: string; // ISO format
   location: string;
   department: number;
   type: string;
   status: "registration" | "ongoing" | "finished";
   url: string;
   players?: Player[];
+  maxPlayers?: number;
+  currentPlayers?: number;
+  registrationDeadline?: string; // ISO format
 }
 
 export interface Player {
@@ -19,12 +23,14 @@ export interface Player {
   club: string;
   elo: number;
   category: string;
+  federation?: string;
+  league?: string;
   isRegistered: boolean;
 }
 
 export interface ApiResponse<T> {
   success: boolean;
-  data: T | null;
+  data?: T | null;
   error?: string;
   lastUpdated: string;
 }

@@ -1,10 +1,5 @@
 import * as cheerio from "cheerio";
-import {
-  Tournament,
-  Player,
-  TournamentListResponse,
-  TournamentDetailsResponse,
-} from "@/types/chess";
+import { Tournament, Player, TournamentDetailsResponse } from "@/types/chess";
 
 export class FFEScraper {
   private baseUrl = "https://www.echecs.asso.fr";
@@ -14,14 +9,13 @@ export class FFEScraper {
    * Récupère la liste des tournois pour un département donné
    */
   async getTournamentsByDepartment(department: number): Promise<Tournament[]> {
-    const url = `${this.baseUrl}/ListeTournois.aspx?Action=TOURNOICOMITE&ComiteRef=${department}`;
+    const url = `${this.baseUrl}/Agenda.aspx?Dept=${department}`;
 
     try {
       const response = await fetch(url, {
         headers: {
           "User-Agent": this.userAgent,
         },
-        next: { revalidate: 72000 }, // Cache 20 heures pour la liste des tournois
       });
 
       if (!response.ok) {
@@ -29,59 +23,13 @@ export class FFEScraper {
       }
 
       const html = await response.text();
-      const $ = cheerio.load(html);
-      const tournaments: Tournament[] = [];
-
-      // Sélecteur pour les lignes de tournois selon la structure réelle
-      $("table tr").each((index, element) => {
-        const $row = $(element);
-        const $cells = $row.find("td");
-
-        // Ignorer les lignes de titre (liste_titre) et les lignes vides
-        if ($row.hasClass("liste_titre") || $cells.length < 8) {
-          return;
-        }
-
-        // Structure réelle : ID, Ville, Département, Nom (lien), Date, Type, Status1, Status2
-        if ($cells.length >= 8) {
-          const idCell = $cells.eq(0);
-          const cityCell = $cells.eq(1);
-          const departmentCell = $cells.eq(2);
-          const nameCell = $cells.eq(3);
-          const dateCell = $cells.eq(4);
-          const typeCell = $cells.eq(5);
-          const status1Cell = $cells.eq(6);
-          const status2Cell = $cells.eq(7);
-
-          const nameLink = nameCell.find("a");
-          const tournamentId = this.extractTournamentId(
-            nameLink.attr("href") || ""
-          );
-
-          if (tournamentId) {
-            tournaments.push({
-              id: tournamentId,
-              name: nameLink.text().trim(),
-              date: this.parseFrenchDate(dateCell.text().trim()),
-              location: cityCell.text().trim(),
-              department,
-              type: typeCell.text().trim(),
-              status: this.parseStatusFromCells(status1Cell, status2Cell),
-              url: `${this.baseUrl}/FicheTournoi.aspx?Ref=${tournamentId}`,
-            });
-          }
-        }
-      });
-
-      return tournaments;
+      return this.parseTournamentsList(html);
     } catch (error) {
       console.error(
-        `Error scraping tournaments for department ${department}:`,
+        `Error fetching tournaments for department ${department}:`,
         error
       );
-      throw new Error(
-        `Failed to fetch tournaments for department ${department}`
-      );
+      throw error;
     }
   }
 
@@ -91,68 +39,67 @@ export class FFEScraper {
   async getTournamentDetails(
     tournamentId: string
   ): Promise<TournamentDetailsResponse> {
-    const url = `${this.baseUrl}/FicheTournoi.aspx?Ref=${tournamentId}`;
+    const tournamentUrl = `${this.baseUrl}/FicheTournoi.aspx?Ref=${tournamentId}`;
+    const playersUrl = `${this.baseUrl}/ListeInscrits.aspx?Ref=${tournamentId}`;
 
     try {
-      const response = await fetch(url, {
+      // Récupérer les détails du tournoi
+      const tournamentResponse = await fetch(tournamentUrl, {
         headers: {
           "User-Agent": this.userAgent,
         },
-        next: { revalidate: 50400 }, // Cache 14 heures pour les détails
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (!tournamentResponse.ok) {
+        throw new Error(`HTTP error! status: ${tournamentResponse.status}`);
       }
 
-      const html = await response.text();
-      const $ = cheerio.load(html);
+      const tournamentHtml = await tournamentResponse.text();
+      const tournament = await this.parseTournamentDetails(
+        tournamentHtml,
+        tournamentId
+      );
 
-      // Extraction des détails du tournoi
-      const tournament: Tournament = {
-        id: tournamentId,
-        name: this.extractTournamentName($),
-        date: this.extractTournamentDate($),
-        endDate: this.extractTournamentEndDate($),
-        location: this.extractTournamentLocation($),
-        department: this.extractTournamentDepartment($),
-        type: "tournoi",
-        status: this.extractTournamentStatus($),
-        maxPlayers: this.extractMaxPlayers($),
-        currentPlayers: this.extractCurrentPlayers($),
-        registrationDeadline: this.extractRegistrationDeadline($),
-        url,
-      };
+      // Récupérer la liste des joueurs
+      const playersResponse = await fetch(playersUrl, {
+        headers: {
+          "User-Agent": this.userAgent,
+        },
+      });
 
-      // Récupération des joueurs
-      const players = await this.getTournamentPlayers(tournamentId);
+      let players: Player[] = [];
+      if (playersResponse.ok) {
+        const playersHtml = await playersResponse.text();
+        players = this.parsePlayersList(playersHtml);
+      }
 
       return {
-        tournament,
-        players,
+        tournament: {
+          ...tournament,
+          players,
+        },
         lastUpdated: new Date().toISOString(),
       };
     } catch (error) {
       console.error(
-        `Error scraping tournament details for ${tournamentId}:`,
+        `Error fetching tournament details for ${tournamentId}:`,
         error
       );
-      throw new Error(`Failed to fetch tournament details for ${tournamentId}`);
+      throw error;
     }
   }
 
   /**
-   * Récupère la liste des joueurs d'un tournoi
+   * Récupère uniquement la liste des joueurs d'un tournoi
    */
   async getTournamentPlayers(tournamentId: string): Promise<Player[]> {
-    const url = `${this.baseUrl}/Resultats.aspx?URL=Tournois/Id/${tournamentId}/${tournamentId}&Action=Ls`;
+    const playersUrl = `${this.baseUrl}/ListeInscrits.aspx?Ref=${tournamentId}`;
 
     try {
-      const response = await fetch(url, {
+      const response = await fetch(playersUrl, {
         headers: {
           "User-Agent": this.userAgent,
         },
-        next: { revalidate: 50400 }, // Cache 14 heures pour les détails
       });
 
       if (!response.ok) {
@@ -160,343 +107,490 @@ export class FFEScraper {
       }
 
       const html = await response.text();
-      const $ = cheerio.load(html);
-      const players: Player[] = [];
-
-      // Sélecteur pour les lignes de joueurs selon la structure réelle
-      $("table tr").each((index, element) => {
-        const $row = $(element);
-        const $cells = $row.find("td");
-
-        // Ignorer les lignes de titre et d'en-tête
-        if (
-          $row.hasClass("papi_titre") ||
-          $row.hasClass("papi_liste_t") ||
-          $cells.length < 8
-        ) {
-          return;
-        }
-
-        // Structure réelle : Nr, (vide), Nom, Rapide, Cat., Fede, Ligue, Club
-        if ($cells.length >= 8) {
-          const nrCell = $cells.eq(0);
-          const nameCell = $cells.eq(2);
-          const eloCell = $cells.eq(3);
-          const categoryCell = $cells.eq(4);
-          const clubCell = $cells.eq(7);
-
-          const fullName = nameCell.text().trim();
-          const [firstName, ...lastNameParts] = fullName.split(" ");
-          const lastName = lastNameParts.join(" ");
-
-          players.push({
-            id: this.generatePlayerId(fullName),
-            name: lastName,
-            firstName,
-            club: clubCell.text().trim(),
-            elo: this.parseEloFromRapide(eloCell.text().trim()),
-            category: categoryCell.text().trim(),
-            isRegistered: true,
-          });
-        }
-      });
-
-      return players;
+      return this.parsePlayersList(html);
     } catch (error) {
       console.error(
-        `Error scraping players for tournament ${tournamentId}:`,
+        `Error fetching players for tournament ${tournamentId}:`,
         error
       );
-      return []; // Retourner un tableau vide en cas d'erreur
+      throw error;
     }
   }
 
-  // Méthodes utilitaires privées
-  private extractTournamentId(href: string): string | null {
-    const match = href.match(/Ref=(\d+)/);
-    return match ? match[1] : null;
+  /**
+   * Parse la liste des tournois depuis la page agenda
+   */
+  private parseTournamentsList(html: string): Tournament[] {
+    const $ = cheerio.load(html);
+    const tournaments: Tournament[] = [];
+
+    // Chercher le tableau des tournois
+    $("table tr").each((index, element) => {
+      if (index === 0) return; // Skip header row
+
+      const $row = $(element);
+      const $cells = $row.find("td");
+
+      // Structure réelle : ID, Ville, Département, Nom (lien), Date, Type, Status1, Status2
+      if ($cells.length >= 8) {
+        const cityCell = $cells.eq(1);
+        const nameCell = $cells.eq(3);
+        const dateCell = $cells.eq(4);
+        const typeCell = $cells.eq(5);
+        const status1Cell = $cells.eq(6);
+        const status2Cell = $cells.eq(7);
+
+        // Extraire l'ID depuis le lien du nom
+        const nameLink = nameCell.find("a").attr("href");
+        const tournamentId = nameLink ? nameLink.match(/Ref=(\d+)/)?.[1] : null;
+
+        if (!tournamentId) return;
+
+        // Extraire le nom
+        const name = nameCell.text().trim();
+
+        // Extraire la ville
+        const city = cityCell.text().trim();
+
+        // Extraire le département depuis la ville ou une autre source
+        const departmentMatch = city.match(/\((\d+)\)/);
+        const department = departmentMatch ? parseInt(departmentMatch[1]) : 0;
+
+        // Extraire la date
+        const dateText = dateCell.text().trim();
+        const date = this.parseDate(dateText);
+
+        // Extraire le type
+        const type = typeCell.text().trim();
+
+        // Déterminer le statut
+        const status1 = status1Cell.text().trim();
+        const status2 = status2Cell.text().trim();
+        const status = this.determineStatus(status1, status2);
+
+        // Construire l'URL complète
+        const url = `${this.baseUrl}/FicheTournoi.aspx?Ref=${tournamentId}`;
+
+        tournaments.push({
+          id: tournamentId,
+          name,
+          date: date.toISOString(),
+          location: city,
+          department,
+          type,
+          status,
+          url,
+        });
+      }
+    });
+
+    return tournaments;
   }
 
-  private parseFrenchDate(dateStr: string): string {
-    // Parser les dates françaises avec toutes les abréviations possibles
-    const months: { [key: string]: string } = {
-      // Janvier
-      "janv.": "01",
-      "jan.": "01",
-      jan: "01",
-      janvier: "01",
-      // Février
-      "févr.": "02",
-      "fév.": "02",
-      fév: "02",
-      février: "02",
-      "fevr.": "02",
-      "fev.": "02",
-      fev: "02",
-      fevrier: "02",
-      // Mars
-      mars: "03",
-      "mar.": "03",
-      mar: "03",
-      // Avril
-      "avr.": "04",
-      avr: "04",
-      avril: "04",
-      "av.": "04",
-      av: "04",
-      // Mai
-      mai: "05",
-      "ma.": "05",
-      ma: "05",
-      // Juin
-      juin: "06",
-      "jun.": "06",
-      jun: "06",
-      // Juillet
-      "juil.": "07",
-      juil: "07",
-      juillet: "07",
-      "jul.": "07",
-      jul: "07",
-      // Août
-      août: "08",
-      aout: "08",
-      "août.": "08",
-      "aout.": "08",
-      "ao.": "08",
-      ao: "08",
-      // Septembre
-      "sept.": "09",
-      sept: "09",
-      septembre: "09",
-      "sep.": "09",
-      sep: "09",
-      // Octobre
-      "oct.": "10",
-      oct: "10",
-      octobre: "10",
-      // Novembre
-      "nov.": "11",
-      nov: "11",
-      novembre: "11",
-      // Décembre
-      "déc.": "12",
-      déc: "12",
-      décembre: "12",
-      "dec.": "12",
-      dec: "12",
-      decembre: "12",
+  /**
+   * Parse les détails d'un tournoi depuis sa page de détail
+   */
+  private async parseTournamentDetails(
+    html: string,
+    tournamentId: string
+  ): Promise<Tournament> {
+    const $ = cheerio.load(html);
+
+    // Extraire le nom du tournoi
+    const name = $("h1, h2, .title, .tournament-name").first().text().trim();
+
+    // Extraire la date
+    const dateText = this.extractDate($);
+    const date = this.parseDate(dateText);
+
+    // Extraire la ville
+    const location = this.extractLocation($);
+
+    // Extraire le département
+    const department = this.extractDepartment($);
+
+    // Extraire le type
+    const type = this.extractType($);
+
+    // Déterminer le statut
+    const status = this.extractStatus($);
+
+    // Extraire les informations supplémentaires
+    const maxPlayers = this.extractMaxPlayers($);
+    const currentPlayers = this.extractCurrentPlayers($);
+    const registrationDeadline = this.extractRegistrationDeadline($);
+    const endDate = this.extractEndDate($);
+
+    // Construire l'URL
+    const url = `${this.baseUrl}/FicheTournoi.aspx?Ref=${tournamentId}`;
+
+    return {
+      id: tournamentId,
+      name: name || `Tournoi ${tournamentId}`,
+      date: date.toISOString(),
+      endDate: endDate?.toISOString(),
+      location: location || "Non spécifié",
+      department: department || 0,
+      type: type || "Non spécifié",
+      status: status as "registration" | "ongoing" | "finished",
+      url,
+      maxPlayers,
+      currentPlayers,
+      registrationDeadline: registrationDeadline?.toISOString(),
     };
+  }
 
-    // Extraire le jour et le mois
-    const match = dateStr.match(/(\d+)\s+(\w+)/);
-    if (match) {
-      const day = match[1].padStart(2, "0");
-      const monthKey = match[2].toLowerCase();
-      const month = months[monthKey];
+  /**
+   * Parse la liste des joueurs depuis la page des inscrits
+   */
+  private parsePlayersList(html: string): Player[] {
+    const $ = cheerio.load(html);
+    const players: Player[] = [];
 
-      if (month) {
-        // Utiliser l'année courante ou l'année suivante si on est en fin d'année
-        const currentYear = new Date().getFullYear();
-        const currentMonth = new Date().getMonth() + 1;
+    // Chercher le tableau des joueurs
+    $("table tr").each((index, element) => {
+      if (index === 0) return; // Skip header row
 
-        // Si le mois du tournoi est antérieur au mois actuel, c'est probablement l'année suivante
-        const year =
-          parseInt(month) < currentMonth ? currentYear + 1 : currentYear;
+      const $row = $(element);
+      const $cells = $row.find("td");
 
-        // Retourner en format ISO complet avec timezone France
-        return `${year}-${month}-${day}T00:00:00.000Z`;
+      // Structure réelle : Nr, (vide), Nom, Rapide, Cat., Fede, Ligue, Club
+      if ($cells.length >= 8) {
+        const nameCell = $cells.eq(2);
+        const eloCell = $cells.eq(3);
+        const categoryCell = $cells.eq(4);
+        const federationCell = $cells.eq(5);
+        const leagueCell = $cells.eq(6);
+        const clubCell = $cells.eq(7);
+
+        // Extraire le nom complet
+        const fullName = nameCell.text().trim();
+        const nameParts = fullName.split(" ");
+        const firstName = nameParts[0] || "";
+        const lastName = nameParts.slice(1).join(" ") || "";
+
+        // Extraire l'Elo
+        const eloText = eloCell.text().trim();
+        const elo = eloText ? parseInt(eloText) || 0 : 0;
+
+        // Extraire la catégorie
+        const category = categoryCell.text().trim();
+
+        // Extraire la fédération
+        const federation = federationCell.text().trim();
+
+        // Extraire la ligue
+        const league = leagueCell.text().trim();
+
+        // Extraire le club
+        const club = clubCell.text().trim();
+
+        // Générer un ID unique
+        const playerId =
+          `${lastName.toLowerCase()}-${firstName.toLowerCase()}`.replace(
+            /\s+/g,
+            "-"
+          );
+
+        players.push({
+          id: playerId,
+          name: lastName,
+          firstName,
+          club: club,
+          elo,
+          category: category,
+          federation: federation,
+          league: league,
+          isRegistered: true,
+        });
       }
-    }
+    });
 
-    // Fallback pour les autres formats
-    return this.parseDate(dateStr);
+    return players;
   }
 
-  private parseDate(dateStr: string): string {
-    // Convertir la date française en format ISO
-    // Format attendu: "DD/MM/YYYY" ou "DD/MM/YYYY - DD/MM/YYYY"
-    const parts = dateStr.split(" - ");
-    const startDate = parts[0];
+  /**
+   * Parse une date depuis le texte
+   */
+  private parseDate(dateText: string): Date {
+    if (!dateText) return new Date();
 
-    // Conversion simple DD/MM/YYYY vers YYYY-MM-DD
-    const [day, month, year] = startDate.split("/");
-    if (day && month && year) {
-      return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
-    }
+    // Essayer différents formats de date
+    const formats = [
+      /(\d{1,2})\/(\d{1,2})\/(\d{4})/, // DD/MM/YYYY
+      /(\d{4})-(\d{1,2})-(\d{1,2})/, // YYYY-MM-DD
+      /(\d{1,2})-(\d{1,2})-(\d{4})/, // DD-MM-YYYY
+    ];
 
-    return dateStr;
-  }
-
-  private parseStatusFromCells(
-    status1Cell: cheerio.Cheerio<cheerio.Element>,
-    status2Cell: cheerio.Cheerio<cheerio.Element>
-  ): "registration" | "ongoing" | "finished" {
-    // Analyser les cellules de statut (X = inscription fermée, autre = inscription ouverte)
-    const status1 = status1Cell.text().trim();
-    const status2 = status2Cell.text().trim();
-
-    // Si les deux cellules ont "X", le tournoi est terminé
-    if (status1 === "X" && status2 === "X") {
-      return "finished";
-    }
-
-    // Si une seule cellule a "X", le tournoi est en cours
-    if (status1 === "X" || status2 === "X") {
-      return "ongoing";
-    }
-
-    // Sinon, inscription ouverte
-    return "registration";
-  }
-
-  private parseStatus(
-    statusStr: string
-  ): "registration" | "ongoing" | "finished" {
-    const status = statusStr.toLowerCase();
-    if (status.includes("inscription")) return "registration";
-    if (status.includes("en cours") || status.includes("débuté"))
-      return "ongoing";
-    if (status.includes("terminé") || status.includes("fini"))
-      return "finished";
-    return "registration"; // Par défaut
-  }
-
-  private parseEloFromRapide(rapideStr: string): number {
-    // Parser "1769 F" ou "1450 N" - extraire le nombre avant la lettre
-    const match = rapideStr.match(/(\d+)/);
-    return match ? parseInt(match[1], 10) : 0;
-  }
-
-  private parseElo(eloStr: string): number {
-    const match = eloStr.match(/(\d+)/);
-    return match ? parseInt(match[1], 10) : 0;
-  }
-
-  private generatePlayerId(fullName: string): string {
-    return fullName
-      .toLowerCase()
-      .replace(/\s+/g, "-")
-      .replace(/[^a-z0-9-]/g, "");
-  }
-
-  // Méthodes d'extraction pour les détails de tournoi selon la structure réelle
-  private extractTournamentName($: cheerio.CheerioAPI): string {
-    return (
-      $("#ctl00_ContentPlaceHolderMain_LabelNom").text().trim() ||
-      "Tournoi sans nom"
-    );
-  }
-
-  private extractTournamentDate($: cheerio.CheerioAPI): string {
-    const datesText = $("#ctl00_ContentPlaceHolderMain_LabelDates")
-      .text()
-      .trim();
-    if (datesText) {
-      // Parser "dimanche 05 octobre 2025 - dimanche 05 octobre 2025"
-      const match = datesText.match(/(\d{1,2})\s+(\w+)\s+(\d{4})/);
+    for (const format of formats) {
+      const match = dateText.match(format);
       if (match) {
-        const day = match[1].padStart(2, "0");
-        const month = this.getMonthNumber(match[2]);
-        const year = match[3];
-        return `${year}-${month}-${day}`;
+        let year, month, day;
+        if (format === formats[0]) {
+          // DD/MM/YYYY
+          [, day, month, year] = match;
+        } else if (format === formats[1]) {
+          // YYYY-MM-DD
+          [, year, month, day] = match;
+        } else {
+          // DD-MM-YYYY
+          [, day, month, year] = match;
+        }
+        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
       }
     }
-    return new Date().toISOString().split("T")[0];
+
+    // Fallback: essayer de parser avec Date.parse
+    const parsed = Date.parse(dateText);
+    if (!isNaN(parsed)) {
+      return new Date(parsed);
+    }
+
+    return new Date();
   }
 
-  private extractTournamentEndDate($: cheerio.CheerioAPI): string | undefined {
-    const datesText = $("#ctl00_ContentPlaceHolderMain_LabelDates")
-      .text()
-      .trim();
-    if (datesText && datesText.includes(" - ")) {
-      // Parser la date de fin si différente de la date de début
-      const parts = datesText.split(" - ");
-      if (parts.length === 2) {
-        const endDateMatch = parts[1].match(/(\d{1,2})\s+(\w+)\s+(\d{4})/);
-        if (endDateMatch) {
-          const day = endDateMatch[1].padStart(2, "0");
-          const month = this.getMonthNumber(endDateMatch[2]);
-          const year = endDateMatch[3];
-          return `${year}-${month}-${day}`;
+  /**
+   * Détermine le statut du tournoi
+   */
+  private determineStatus(
+    status1: string,
+    status2: string
+  ): "registration" | "ongoing" | "finished" {
+    const status1Lower = status1.toLowerCase();
+    const status2Lower = status2.toLowerCase();
+
+    if (
+      status1Lower.includes("inscription") ||
+      status2Lower.includes("inscription")
+    ) {
+      return "registration";
+    }
+    if (
+      status1Lower.includes("en cours") ||
+      status2Lower.includes("en cours")
+    ) {
+      return "ongoing";
+    }
+    if (status1Lower.includes("terminé") || status2Lower.includes("terminé")) {
+      return "finished";
+    }
+
+    return "registration"; // Default
+  }
+
+  // Méthodes d'extraction pour les détails du tournoi
+  private extractDate($: cheerio.CheerioAPI): string {
+    // Chercher la date dans différents endroits possibles
+    const dateSelectors = [
+      ".date",
+      ".tournament-date",
+      ".date-debut",
+      ".date-début",
+      "[class*='date']",
+      "td:contains('Date')",
+      "th:contains('Date')",
+      "td:contains('Début')",
+      "th:contains('Début')",
+      "td:contains('Du')",
+      "th:contains('Du')",
+    ];
+
+    for (const selector of dateSelectors) {
+      const dateElement = $(selector);
+      if (dateElement.length > 0) {
+        const text = dateElement.text().trim();
+        if (text) {
+          return text;
         }
       }
     }
-    return undefined;
+
+    return "";
   }
 
-  private extractTournamentLocation($: cheerio.CheerioAPI): string {
-    const lieuText = $("#ctl00_ContentPlaceHolderMain_LabelLieu").text().trim();
-    if (lieuText) {
-      // Extraire la ville depuis "37 - TOURS"
-      const parts = lieuText.split(" - ");
-      return parts.length > 1 ? parts[1].trim() : lieuText;
+  private extractLocation($: cheerio.CheerioAPI): string {
+    const locationSelectors = [
+      ".location",
+      ".ville",
+      ".city",
+      "td:contains('Ville')",
+      "th:contains('Ville')",
+    ];
+
+    for (const selector of locationSelectors) {
+      const locationElement = $(selector);
+      if (locationElement.length > 0) {
+        return locationElement.text().trim();
+      }
     }
-    return "Lieu non spécifié";
+
+    return "";
   }
 
-  private extractTournamentDepartment($: cheerio.CheerioAPI): number {
-    const lieuText = $("#ctl00_ContentPlaceHolderMain_LabelLieu").text().trim();
-    if (lieuText) {
-      // Extraire le département depuis "37 - TOURS"
-      const parts = lieuText.split(" - ");
-      const dept = parseInt(parts[0], 10);
-      return isNaN(dept) ? 0 : dept;
+  private extractDepartment($: cheerio.CheerioAPI): number {
+    const departmentSelectors = [
+      ".department",
+      ".dept",
+      "td:contains('Département')",
+      "th:contains('Département')",
+    ];
+
+    for (const selector of departmentSelectors) {
+      const deptElement = $(selector);
+      if (deptElement.length > 0) {
+        const text = deptElement.text().trim();
+        const match = text.match(/(\d+)/);
+        if (match) {
+          return parseInt(match[1]);
+        }
+      }
     }
+
     return 0;
   }
 
-  private extractTournamentStatus(
-    $: cheerio.CheerioAPI
-  ): "registration" | "ongoing" | "finished" {
-    // Vérifier s'il y a des liens de résultats disponibles
-    const hasResults = $("a[href*='Resultats.aspx']").length > 0;
-    if (hasResults) {
-      // Si des résultats sont disponibles, le tournoi est probablement terminé ou en cours
-      return "ongoing"; // On pourrait être plus précis en analysant les liens disponibles
+  private extractType($: cheerio.CheerioAPI): string {
+    const typeSelectors = [
+      ".type",
+      ".tournament-type",
+      "td:contains('Type')",
+      "th:contains('Type')",
+    ];
+
+    for (const selector of typeSelectors) {
+      const typeElement = $(selector);
+      if (typeElement.length > 0) {
+        return typeElement.text().trim();
+      }
     }
+
+    return "";
+  }
+
+  private extractStatus($: cheerio.CheerioAPI): string {
+    const statusSelectors = [
+      ".status",
+      ".statut",
+      "td:contains('Statut')",
+      "th:contains('Statut')",
+    ];
+
+    for (const selector of statusSelectors) {
+      const statusElement = $(selector);
+      if (statusElement.length > 0) {
+        const text = statusElement.text().trim().toLowerCase();
+        if (text.includes("inscription")) return "registration";
+        if (text.includes("en cours")) return "ongoing";
+        if (text.includes("terminé")) return "finished";
+      }
+    }
+
     return "registration";
   }
 
   private extractMaxPlayers($: cheerio.CheerioAPI): number | undefined {
-    // Chercher dans l'annonce des informations sur le nombre de joueurs
-    const annonce = $("#ctl00_ContentPlaceHolderMain_LabelAnnonce").text();
-    const match = annonce.match(/limité aux (\d+)/i);
-    if (match) {
-      return parseInt(match[1], 10);
+    const maxPlayersSelectors = [
+      ".max-players",
+      ".max-joueurs",
+      ".capacite",
+      ".places",
+      "td:contains('Max')",
+      "th:contains('Max')",
+      "td:contains('maximum')",
+      "th:contains('maximum')",
+      "td:contains('places')",
+      "th:contains('places')",
+      "td:contains('capacité')",
+      "th:contains('capacité')",
+    ];
+
+    for (const selector of maxPlayersSelectors) {
+      const element = $(selector);
+      if (element.length > 0) {
+        const text = element.text().trim();
+        const match = text.match(/(\d+)/);
+        if (match) {
+          return parseInt(match[1]);
+        }
+      }
     }
+
     return undefined;
   }
 
   private extractCurrentPlayers($: cheerio.CheerioAPI): number | undefined {
-    // Cette information n'est pas directement disponible sur la page de détail
-    // Elle sera récupérée via la page des joueurs
+    const currentPlayersSelectors = [
+      ".current-players",
+      ".joueurs-inscrits",
+      ".inscrits",
+      "td:contains('inscrit')",
+      "th:contains('inscrit')",
+      "td:contains('participant')",
+      "th:contains('participant')",
+    ];
+
+    for (const selector of currentPlayersSelectors) {
+      const element = $(selector);
+      if (element.length > 0) {
+        const text = element.text().trim();
+        const match = text.match(/(\d+)/);
+        if (match) {
+          return parseInt(match[1]);
+        }
+      }
+    }
+
     return undefined;
   }
 
-  private extractRegistrationDeadline(
-    $: cheerio.CheerioAPI
-  ): string | undefined {
-    // Cette information n'est pas directement visible dans la structure fournie
-    // Elle pourrait être dans l'annonce ou nécessiter un parsing plus complexe
+  private extractRegistrationDeadline($: cheerio.CheerioAPI): Date | undefined {
+    const deadlineSelectors = [
+      ".registration-deadline",
+      ".date-limite",
+      ".limite-inscription",
+      "td:contains('limite')",
+      "th:contains('limite')",
+      "td:contains('clôture')",
+      "th:contains('clôture')",
+      "td:contains('avant')",
+    ];
+
+    for (const selector of deadlineSelectors) {
+      const element = $(selector);
+      if (element.length > 0) {
+        const text = element.text().trim();
+        const date = this.parseDate(text);
+        if (date && date.getTime() !== new Date().getTime()) {
+          return date;
+        }
+      }
+    }
+
     return undefined;
   }
 
-  private getMonthNumber(monthName: string): string {
-    const months: { [key: string]: string } = {
-      janvier: "01",
-      février: "02",
-      mars: "03",
-      avril: "04",
-      mai: "05",
-      juin: "06",
-      juillet: "07",
-      août: "08",
-      septembre: "09",
-      octobre: "10",
-      novembre: "11",
-      décembre: "12",
-    };
-    return months[monthName.toLowerCase()] || "01";
+  private extractEndDate($: cheerio.CheerioAPI): Date | undefined {
+    const endDateSelectors = [
+      ".end-date",
+      ".date-fin",
+      ".fin",
+      "td:contains('Fin')",
+      "th:contains('Fin')",
+      "td:contains('jusqu')",
+      "td:contains('au')",
+    ];
+
+    for (const selector of endDateSelectors) {
+      const element = $(selector);
+      if (element.length > 0) {
+        const text = element.text().trim();
+        const date = this.parseDate(text);
+        if (date && date.getTime() !== new Date().getTime()) {
+          return date;
+        }
+      }
+    }
+
+    return undefined;
   }
 }

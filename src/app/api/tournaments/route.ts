@@ -1,77 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { FFEScraper } from "@/services/ffescraper";
-import {
-  ApiResponse,
-  Tournament,
-  TournamentListResponse,
-  TournamentListParams,
-} from "@/types/chess";
+import { ApiResponse, Tournament, TournamentListResponse } from "@/types/chess";
 
 // Cache pour 20 heures (72000 secondes)
 export const revalidate = 72000;
 
 /**
- * @swagger
- * /api/tournaments:
- *   get:
- *     summary: Récupère la liste des tournois d'échecs avec pagination
- *     description: Retourne la liste des tournois d'échecs pour les départements spécifiés, avec support de la pagination et filtrage par événements futurs
- *     tags:
- *       - Tournaments
- *     parameters:
- *       - $ref: '#/components/parameters/Department'
- *       - $ref: '#/components/parameters/DepartmentArray'
- *       - $ref: '#/components/parameters/Limit'
- *       - $ref: '#/components/parameters/Offset'
- *       - $ref: '#/components/parameters/Next'
- *     responses:
- *       200:
- *         description: Liste des tournois récupérée avec succès
- *         content:
- *           application/json:
- *             schema:
- *               allOf:
- *                 - $ref: '#/components/schemas/ApiResponse'
- *                 - type: object
- *                   properties:
- *                     data:
- *                       $ref: '#/components/schemas/TournamentListResponse'
- *             example:
- *               success: true
- *               data:
- *                 tournaments:
- *                   - id: "68608"
- *                     name: "Tournoi Vétérans + 55 ans N°4 2025 - 2026"
- *                     date: "2026-04-24T00:00:00.000Z"
- *                     location: "TOURS"
- *                     department: 37
- *                     type: "CVL"
- *                     status: "registration"
- *                     url: "https://www.echecs.asso.fr/FicheTournoi.aspx?Ref=68608"
- *                 total: 25
- *                 department: 37
- *                 lastUpdated: "2025-09-20T08:04:23.941Z"
- *               lastUpdated: "2024-03-01T10:30:00.000Z"
- *       400:
- *         description: Paramètres de requête invalides
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- *             example:
- *               success: false
- *               error: "Department parameter is required"
- *               lastUpdated: "2025-09-20T08:04:23.941Z"
- *       500:
- *         description: Erreur interne du serveur
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- *             example:
- *               success: false
- *               error: "Internal server error"
- *               lastUpdated: "2025-09-20T08:04:23.941Z"
+ * API pour récupérer la liste des tournois d'échecs avec pagination
+ *
+ * Paramètres:
+ * - department: numéro du département (legacy)
+ * - department[]: tableau de départements (recommandé)
+ * - limit: nombre maximum de résultats
+ * - offset: décalage pour la pagination
+ * - next: filtrer les événements futurs uniquement
  */
 export async function GET(request: NextRequest) {
   try {
@@ -91,6 +33,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json<ApiResponse<null>>(
           {
             success: false,
+            data: null,
             error: "Department must be a valid number",
             lastUpdated: new Date().toISOString(),
           },
@@ -112,6 +55,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json<ApiResponse<null>>(
         {
           success: false,
+          data: null,
           error:
             "Department parameter is required (use department=37 or department[]=37&department[]=41)",
           lastUpdated: new Date().toISOString(),
