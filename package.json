@@ -12,14 +12,15 @@
     "generate:openapi": "tsx scripts/generate-openapi.ts"
   },
   "dependencies": {
+    "@scalar/api-reference-react": "^0.7.50",
+    "@scalar/nextjs-api-reference": "^0.8.20",
     "@types/cheerio": "^0.22.35",
     "cheerio": "^1.1.2",
     "next": "15.5.3",
     "next-swagger-doc": "^0.4.1",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "swagger-jsdoc": "^6.2.8",
-    "swagger-ui-react": "^5.29.0"
+    "swagger-jsdoc": "^6.2.8"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
@@ -31,6 +32,7 @@
     "eslint": "^9",
     "eslint-config-next": "15.5.3",
     "tailwindcss": "^4",
+    "ts-json-schema-generator": "^2.4.0",
     "tsx": "^4.20.5",
     "typescript": "^5"
   }

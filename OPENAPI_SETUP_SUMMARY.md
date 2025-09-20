@@ -3,9 +3,10 @@
 ## ✅ Ce qui a été installé et configuré
 
 ### 1. Dépendances ajoutées
-- `swagger-ui-react` : Interface utilisateur Swagger interactive
+- `@scalar/nextjs-api-reference` : Interface utilisateur Scalar moderne et élégante
 - `swagger-jsdoc` : Génération de documentation depuis les commentaires JSDoc
 - `next-swagger-doc` : Intégration Next.js pour OpenAPI
+- `ts-json-schema-generator` : Génération automatique des schémas depuis TypeScript
 - `tsx` : Exécution de scripts TypeScript
 
 ### 2. Fichiers créés
@@ -38,10 +39,13 @@ npm run generate:openapi  # Génère le schéma OpenAPI
 ## 🌐 Endpoints disponibles
 
 ### Documentation interactive
-- **Interface Swagger** : `http://localhost:3012/docs`
-  - Interface utilisateur complète
+- **Interface Scalar** : `http://localhost:3012/docs` (React component avec Scalar)
+- **Interface Scalar API** : `http://localhost:3012/api/reference` (API route avec Scalar)
+  - Interface utilisateur moderne et élégante (Scalar au lieu de Swagger UI)
   - Test des endpoints directement depuis le navigateur
   - Visualisation des schémas de données
+  - Thème personnalisé avec gradient violet
+  - Performance améliorée et UX moderne
 
 ### Spécifications techniques
 - **Spécification OpenAPI JSON** : `http://localhost:3012/api/docs`
@@ -58,14 +62,17 @@ npm run generate:openapi  # Génère le schéma OpenAPI
 ## 🔧 Fonctionnalités
 
 ### Génération automatique des types
-- Les types TypeScript sont automatiquement convertis en schémas OpenAPI
+- Les types TypeScript sont automatiquement convertis en schémas OpenAPI (avec fallback)
 - Cohérence garantie entre le code et la documentation
 - Exemples et descriptions automatiques
+- Système de fallback robuste en cas d'échec de la génération automatique
 
 ### Documentation interactive
-- Interface Swagger moderne et responsive
+- Interface Scalar moderne et responsive (remplace Swagger UI)
 - Test des endpoints en temps réel
 - Validation des paramètres et réponses
+- Thème personnalisé avec gradient
+- Performance optimisée
 - Exemples de requêtes et réponses
 
 ### Maintenance simplifiée
@@ -102,7 +109,7 @@ curl "http://localhost:3012/api/docs"
 
 1. **Documentation automatique** : Plus besoin de maintenir la documentation manuellement
 2. **Types cohérents** : Les types TypeScript et OpenAPI sont synchronisés
-3. **Interface moderne** : Documentation interactive avec Swagger UI
+3. **Interface moderne** : Documentation interactive avec Scalar (plus moderne que Swagger UI)
 4. **Standards** : Utilisation des standards OpenAPI 3.0.0
 5. **Maintenance facile** : Scripts automatisés pour la génération
 6. **Intégration Next.js** : Parfaitement intégré avec l'architecture Next.js

@@ -4,6 +4,15 @@
 
 L'API FFE Chess Agenda permet de récupérer les informations sur les tournois d'échecs organisés par la Fédération Française d'Échecs (FFE).
 
+## 🎨 Interface de documentation
+
+### Documentation interactive Scalar
+- **URL** : `http://localhost:3012/docs`
+- **Alternative** : `http://localhost:3012/api/reference`
+- **Interface moderne** : Scalar remplace Swagger UI pour une meilleure UX
+- **Thème personnalisé** : Gradient violet avec design moderne
+- **Performance optimisée** : Chargement rapide et interface responsive
+
 ## Endpoints disponibles
 
 ### 1. Liste des tournois (Agenda)

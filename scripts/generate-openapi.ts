@@ -2,23 +2,19 @@
 
 import { writeFileSync } from "fs";
 import { join } from "path";
-import { generateOpenAPISchema } from "../src/lib/type-exporter";
+import { getSwaggerSpec } from "../src/lib/swagger";
 
 /**
  * Script pour générer automatiquement le schéma OpenAPI
  * Usage: npm run generate:openapi
  */
 
-function generateOpenAPIFile() {
+async function generateOpenAPIFile() {
   console.log("🔄 Génération du schéma OpenAPI...");
 
   try {
     // Générer le schéma OpenAPI
-    const schema = generateOpenAPISchema(
-      process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
-        : "http://localhost:3012"
-    );
+    const schema = await getSwaggerSpec();
 
     // Écrire le fichier
     const outputPath = join(process.cwd(), "openapi.json");
@@ -38,7 +34,7 @@ function generateOpenAPIFile() {
 
 // Exécuter le script si appelé directement
 if (require.main === module) {
-  generateOpenAPIFile();
+  generateOpenAPIFile().catch(console.error);
 }
 
 export { generateOpenAPIFile };

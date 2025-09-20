@@ -36,15 +36,15 @@ export const revalidate = 50400;
  *             example:
  *               success: true
  *               data:
- *                 - id: "12345"
- *                   name: "Open de Paris 2024"
- *                   date: "2024-03-15T00:00:00.000Z"
- *                   location: "Paris"
- *                   department: 75
- *                   type: "tournoi"
+ *                 - id: "68608"
+ *                   name: "Tournoi Vétérans + 55 ans N°4 2025 - 2026"
+ *                   date: "2026-04-24T00:00:00.000Z"
+ *                   location: "TOURS"
+ *                   department: 37
+ *                   type: "CVL"
  *                   status: "registration"
- *                   url: "https://www.echecs.asso.fr/FicheTournoi.aspx?Ref=12345"
- *               lastUpdated: "2024-03-01T10:30:00.000Z"
+ *                   url: "https://www.echecs.asso.fr/FicheTournoi.aspx?Ref=68608"
+ *               lastUpdated: "2025-09-20T08:04:23.941Z"
  *       400:
  *         description: Paramètres de requête invalides
  *         content:
@@ -54,7 +54,7 @@ export const revalidate = 50400;
  *             example:
  *               success: false
  *               error: "department[] parameter is required"
- *               lastUpdated: "2024-03-01T10:30:00.000Z"
+ *               lastUpdated: "2025-09-20T08:04:23.941Z"
  *       500:
  *         description: Erreur interne du serveur
  *         content:
@@ -64,7 +64,7 @@ export const revalidate = 50400;
  *             example:
  *               success: false
  *               error: "Internal server error"
- *               lastUpdated: "2024-03-01T10:30:00.000Z"
+ *               lastUpdated: "2025-09-20T08:04:23.941Z"
  */
 export async function GET(request: NextRequest) {
   try {
