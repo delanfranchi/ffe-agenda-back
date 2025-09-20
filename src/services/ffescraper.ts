@@ -40,7 +40,6 @@ export class FFEScraper {
     tournamentId: string
   ): Promise<TournamentDetailsResponse> {
     const tournamentUrl = `${this.baseUrl}/FicheTournoi.aspx?Ref=${tournamentId}`;
-    const playersUrl = `${this.baseUrl}/ListeInscrits.aspx?Ref=${tournamentId}`;
 
     try {
       // Récupérer les détails du tournoi
@@ -64,7 +63,7 @@ export class FFEScraper {
       let players: Player[] = [];
       try {
         players = await this.getTournamentPlayers(tournamentId);
-      } catch (error) {
+      } catch {
         // Si la récupération des joueurs échoue, continuer sans joueurs
         // Pas de log pour éviter de flooder
       }
@@ -105,7 +104,7 @@ export class FFEScraper {
 
       const html = await response.text();
       return this.parsePlayersList(html);
-    } catch (error) {
+    } catch {
       // Erreur silencieuse, retourner une liste vide
       return [];
     }
@@ -119,7 +118,7 @@ export class FFEScraper {
     const tournaments: Tournament[] = [];
 
     // Chercher le tableau des tournois
-    $("table tr").each((index, element) => {
+    $("table tr").each((_index, element) => {
       const $row = $(element);
 
       // Skip les lignes de titre (mois/année)
