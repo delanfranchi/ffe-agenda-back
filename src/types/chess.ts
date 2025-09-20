@@ -1,5 +1,5 @@
 // Réexport des types partagés
-export * from "../../../_types/index";
+export * from "../_types/index";
 
 // Types spécifiques au backend Next.js
 export interface TournamentListParams {

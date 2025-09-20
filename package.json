@@ -8,14 +8,18 @@
     "start": "next start --port 3012",
     "lint": "eslint",
     "test:scraping": "node scripts/test-scraping.js",
-    "deploy": "node scripts/deploy.js"
+    "deploy": "node scripts/deploy.js",
+    "generate:openapi": "tsx scripts/generate-openapi.ts"
   },
   "dependencies": {
     "@types/cheerio": "^0.22.35",
     "cheerio": "^1.1.2",
     "next": "15.5.3",
+    "next-swagger-doc": "^0.4.1",
     "react": "19.1.0",
-    "react-dom": "19.1.0"
+    "react-dom": "19.1.0",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-react": "^5.29.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
@@ -27,6 +31,7 @@
     "eslint": "^9",
     "eslint-config-next": "15.5.3",
     "tailwindcss": "^4",
+    "tsx": "^4.20.5",
     "typescript": "^5"
   }
 }

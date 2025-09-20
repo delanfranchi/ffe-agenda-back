@@ -10,6 +10,69 @@ import {
 // Cache pour 20 heures (72000 secondes)
 export const revalidate = 72000;
 
+/**
+ * @swagger
+ * /api/tournaments:
+ *   get:
+ *     summary: Récupère la liste des tournois d'échecs avec pagination
+ *     description: Retourne la liste des tournois d'échecs pour les départements spécifiés, avec support de la pagination et filtrage par événements futurs
+ *     tags:
+ *       - Tournaments
+ *     parameters:
+ *       - $ref: '#/components/parameters/Department'
+ *       - $ref: '#/components/parameters/DepartmentArray'
+ *       - $ref: '#/components/parameters/Limit'
+ *       - $ref: '#/components/parameters/Offset'
+ *       - $ref: '#/components/parameters/Next'
+ *     responses:
+ *       200:
+ *         description: Liste des tournois récupérée avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/TournamentListResponse'
+ *             example:
+ *               success: true
+ *               data:
+ *                 tournaments:
+ *                   - id: "12345"
+ *                     name: "Open de Paris 2024"
+ *                     date: "2024-03-15T00:00:00.000Z"
+ *                     location: "Paris"
+ *                     department: 75
+ *                     type: "tournoi"
+ *                     status: "registration"
+ *                     url: "https://www.echecs.asso.fr/FicheTournoi.aspx?Ref=12345"
+ *                 total: 25
+ *                 department: 37
+ *                 lastUpdated: "2024-03-01T10:30:00.000Z"
+ *               lastUpdated: "2024-03-01T10:30:00.000Z"
+ *       400:
+ *         description: Paramètres de requête invalides
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *             example:
+ *               success: false
+ *               error: "Department parameter is required"
+ *               lastUpdated: "2024-03-01T10:30:00.000Z"
+ *       500:
+ *         description: Erreur interne du serveur
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *             example:
+ *               success: false
+ *               error: "Internal server error"
+ *               lastUpdated: "2024-03-01T10:30:00.000Z"
+ */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
