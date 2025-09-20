@@ -5,6 +5,9 @@ import { ApiResponse, TournamentDetailsResponse } from "@/types/chess";
 // Cache pour 14 heures (50400 secondes)
 export const revalidate = 50400;
 
+// Forcer le rendu dynamique
+export const dynamic = 'force-dynamic';
+
 /**
  * API pour récupérer les détails d'un tournoi spécifique
  *

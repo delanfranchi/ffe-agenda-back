@@ -5,6 +5,9 @@ import { ApiResponse, Tournament, TournamentListResponse } from "@/types/chess";
 // Cache pour 20 heures (72000 secondes)
 export const revalidate = 72000;
 
+// Forcer le rendu dynamique car on utilise request.url
+export const dynamic = 'force-dynamic';
+
 /**
  * API pour récupérer la liste des tournois d'échecs avec pagination
  *
