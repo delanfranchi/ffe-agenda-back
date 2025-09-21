@@ -403,6 +403,21 @@ export class FFEScraper {
       décembre: 11,
     };
 
+    // Format complet: "dimanche 28 septembre 2025 - dimanche 28 septembre 2025"
+    const fullDateFormat = /(\w+)\s+(\d{1,2})\s+(\w+)\s+(\d{4})/;
+    const fullDateMatch = dateText.match(fullDateFormat);
+
+    if (fullDateMatch) {
+      const day = parseInt(fullDateMatch[2]);
+      const monthText = fullDateMatch[3].toLowerCase();
+      const year = parseInt(fullDateMatch[4]);
+      const month = monthMap[monthText];
+
+      if (month !== undefined) {
+        return new Date(year, month, day);
+      }
+    }
+
     // Format français: "24 avr." ou "24 avril"
     const frenchFormat = /(\d{1,2})\s+(\w+\.?)/;
     const frenchMatch = dateText.match(frenchFormat);
@@ -513,7 +528,16 @@ export class FFEScraper {
 
   // Méthodes d'extraction pour les détails du tournoi
   private extractDate($: cheerio.Root): string {
-    // Chercher la date dans différents endroits possibles
+    // Utiliser l'ID spécifique de la FFE
+    const dateElement = $("#ctl00_ContentPlaceHolderMain_LabelDates");
+    if (dateElement.length > 0) {
+      const text = dateElement.text().trim();
+      if (text) {
+        return text;
+      }
+    }
+
+    // Fallback vers les sélecteurs génériques
     const dateSelectors = [
       ".date",
       ".tournament-date",
@@ -542,6 +566,19 @@ export class FFEScraper {
   }
 
   private extractLocation($: cheerio.Root): string {
+    // Utiliser l'ID spécifique de la FFE
+    const locationElement = $("#ctl00_ContentPlaceHolderMain_LabelLieu");
+    if (locationElement.length > 0) {
+      const text = locationElement.text().trim();
+      // Extraire la ville depuis "37 - DESCARTES"
+      const parts = text.split(" - ");
+      if (parts.length > 1) {
+        return parts[1].trim();
+      }
+      return text;
+    }
+
+    // Fallback vers les sélecteurs génériques
     const locationSelectors = [
       ".location",
       ".ville",
@@ -561,6 +598,21 @@ export class FFEScraper {
   }
 
   private extractDepartment($: cheerio.Root): number {
+    // Utiliser l'ID spécifique de la FFE
+    const locationElement = $("#ctl00_ContentPlaceHolderMain_LabelLieu");
+    if (locationElement.length > 0) {
+      const text = locationElement.text().trim();
+      // Extraire le département depuis "37 - DESCARTES"
+      const parts = text.split(" - ");
+      if (parts.length > 0) {
+        const deptMatch = parts[0].match(/(\d+)/);
+        if (deptMatch) {
+          return parseInt(deptMatch[1]);
+        }
+      }
+    }
+
+    // Fallback vers les sélecteurs génériques
     const departmentSelectors = [
       ".department",
       ".dept",
@@ -583,6 +635,13 @@ export class FFEScraper {
   }
 
   private extractType($: cheerio.Root): string {
+    // Utiliser l'ID spécifique de la FFE
+    const typeElement = $("#ctl00_ContentPlaceHolderMain_LabelHomologuePar");
+    if (typeElement.length > 0) {
+      return typeElement.text().trim();
+    }
+
+    // Fallback vers les sélecteurs génériques
     const typeSelectors = [
       ".type",
       ".tournament-type",
