@@ -6,63 +6,38 @@ import { ApiResponse, Tournament, TournamentListResponse } from "@/types/chess";
 export const revalidate = 72000;
 
 /**
- * API pour récupérer la liste des tournois d'échecs avec pagination
+ * API pour récupérer la liste des tournois d'échecs
  *
  * Paramètres:
- * - department: numéro du département (legacy)
- * - department[]: tableau de départements (recommandé)
- * - limit: nombre maximum de résultats
- * - offset: décalage pour la pagination
- * - next: filtrer les événements futurs uniquement
+ * - department[]: tableau de départements
+ *
+ * Note: Seuls les événements futurs sont retournés par défaut
  */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const department = searchParams.get("department");
     const departmentArray = searchParams.getAll("department[]");
-    const limit = searchParams.get("limit");
-    const offset = searchParams.get("offset");
-    const next = searchParams.get("next") === "true";
 
-    let departmentNumbers: number[] = [];
-
-    // Gérer un seul département (format legacy)
-    if (department) {
-      const departmentNumber = parseInt(department, 10);
-      if (isNaN(departmentNumber)) {
-        return NextResponse.json<ApiResponse<null>>(
-          {
-            success: false,
-            data: null,
-            error: "Department must be a valid number",
-            lastUpdated: new Date().toISOString(),
-          },
-          { status: 400 }
-        );
-      }
-      departmentNumbers = [departmentNumber];
-    }
-    // Gérer un tableau de départements (format standard REST)
-    else if (departmentArray.length > 0) {
-      departmentNumbers = departmentArray.map((dept) => {
-        const num = parseInt(dept, 10);
-        if (isNaN(num)) {
-          throw new Error(`Invalid department number: ${dept}`);
-        }
-        return num;
-      });
-    } else {
+    if (departmentArray.length === 0) {
       return NextResponse.json<ApiResponse<null>>(
         {
           success: false,
           data: null,
           error:
-            "Department parameter is required (use department=37 or department[]=37&department[]=41)",
+            "Department parameter is required (use department[]=37&department[]=41)",
           lastUpdated: new Date().toISOString(),
         },
         { status: 400 }
       );
     }
+
+    const departmentNumbers = departmentArray.map((dept) => {
+      const num = parseInt(dept, 10);
+      if (isNaN(num)) {
+        throw new Error(`Invalid department number: ${dept}`);
+      }
+      return num;
+    });
 
     const scraper = new FFEScraper();
 
@@ -85,34 +60,20 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // Filtrer les événements à venir si next=true
-    let filteredTournaments = allTournaments;
-    if (next) {
-      const now = new Date();
-      filteredTournaments = allTournaments.filter((tournament) => {
-        const tournamentDate = new Date(tournament.date);
-        return tournamentDate >= now;
-      });
-    }
+    // Filtrer les événements à venir (toujours actif)
+    const now = new Date();
+    const filteredTournaments = allTournaments.filter((tournament) => {
+      const tournamentDate = new Date(tournament.date);
+      return tournamentDate >= now;
+    });
 
     // Trier par date (ordre croissant - les plus proches en premier)
     filteredTournaments.sort(
       (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
     );
 
-    // Appliquer la pagination si demandée
-    let paginatedTournaments = filteredTournaments;
-    if (limit || offset) {
-      const limitNum = limit ? parseInt(limit, 10) : filteredTournaments.length;
-      const offsetNum = offset ? parseInt(offset, 10) : 0;
-      paginatedTournaments = filteredTournaments.slice(
-        offsetNum,
-        offsetNum + limitNum
-      );
-    }
-
     const response: TournamentListResponse = {
-      tournaments: paginatedTournaments,
+      tournaments: filteredTournaments,
       total: filteredTournaments.length,
       department: departmentNumbers.length === 1 ? departmentNumbers[0] : 0, // 0 pour multiple départements
       lastUpdated: new Date().toISOString(),

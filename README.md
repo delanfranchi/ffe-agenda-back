@@ -26,10 +26,9 @@ npm run test:scraping
 
 ## 📋 API Endpoints
 
-- `GET /api/tournaments?department=37&limit=10` - Liste des tournois
+- `GET /api/tournaments?department[]=37&department[]=41` - Liste des tournois (événements futurs uniquement)
 - `GET /api/tournaments/68600` - Détails d'un tournoi
 - `GET /api/tournaments/68600/players` - Joueurs d'un tournoi
-- `GET /api/agenda?departements=37,41&club=Echiquier Tourangeau` - Agenda filtré
 
 ## 📁 Structure du projet
 

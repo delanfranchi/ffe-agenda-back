@@ -3,9 +3,7 @@ export * from "../_types/index";
 
 // Types spécifiques au backend Next.js
 export interface TournamentListParams {
-  department: number;
-  limit?: number;
-  offset?: number;
+  departments: number[];
 }
 
 export interface TournamentDetailsParams {

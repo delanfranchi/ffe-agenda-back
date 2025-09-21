@@ -19,7 +19,7 @@ export default function Home() {
             <div className="border-l-4 border-blue-500 pl-4">
               <h3 className="font-semibold text-gray-700">Liste des tournois</h3>
               <code className="text-sm text-gray-600">
-                GET /api/tournaments?department=37&limit=10
+                GET /api/tournaments?department[]=37&department[]=41
               </code>
             </div>
             <div className="border-l-4 border-green-500 pl-4">
@@ -34,12 +34,6 @@ export default function Home() {
                 GET /api/tournaments/68600/players
               </code>
             </div>
-            <div className="border-l-4 border-orange-500 pl-4">
-              <h3 className="font-semibold text-gray-700">Agenda filtré</h3>
-              <code className="text-sm text-gray-600">
-                GET /api/agenda?department[]=37&department[]=41&club=Echiquier Tourangeau&next=true
-              </code>
-            </div>
           </div>
         </div>
 
@@ -49,22 +43,16 @@ export default function Home() {
           </h2>
           <div className="space-y-4 text-sm text-gray-600">
             <div>
-              <strong>department :</strong> Numéro de département (ex: 37)
-            </div>
-            <div>
               <strong>department[] :</strong> Paramètre répété pour chaque département (ex: department[]=37&department[]=41&department[]=36)
             </div>
             <div>
               <strong>club :</strong> Nom du club à filtrer (ex: &quot;Echiquier Tourangeau&quot;)
             </div>
             <div>
-              <strong>limit :</strong> Nombre maximum de résultats (défaut: 10)
-            </div>
-            <div>
               <strong>showOnlyClub :</strong> Afficher seulement les tournois avec des joueurs du club (true/false)
             </div>
-            <div>
-              <strong>next :</strong> Filtrer les événements à venir uniquement (true/false) - inclut les événements du jour
+            <div className="text-green-600 font-medium">
+              <strong>Note :</strong> Seuls les événements futurs sont retournés par défaut
             </div>
           </div>
         </div>
