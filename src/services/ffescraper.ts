@@ -116,13 +116,23 @@ export class FFEScraper {
   private parseTournamentsList(html: string): Tournament[] {
     const $ = cheerio.load(html);
     const tournaments: Tournament[] = [];
+    let currentYear = new Date().getFullYear(); // Année par défaut
 
     // Chercher le tableau des tournois
     $("table tr").each((_index, element) => {
       const $row = $(element);
 
-      // Skip les lignes de titre (mois/année)
-      if ($row.hasClass("liste_titre")) {
+      // Si c'est une ligne de titre (mois/année), extraire l'année
+      if (
+        $row.hasClass("liste_titre") ||
+        $row.find("td.liste_titre").length > 0
+      ) {
+        const titleText = $row.text().trim();
+        // Chercher une année dans le texte (format: "mois 20XX")
+        const yearMatch = titleText.match(/(20\d{2})/);
+        if (yearMatch) {
+          currentYear = parseInt(yearMatch[1]);
+        }
         return;
       }
 
@@ -162,9 +172,9 @@ export class FFEScraper {
       const department = parseInt(departmentCell.text().trim()) || 0;
       if (department === 0) return;
 
-      // Extraire la date
+      // Extraire la date avec l'année courante
       const dateText = dateCell.text().trim();
-      const date = this.parseDate(dateText);
+      const date = this.parseDate(dateText, currentYear);
 
       // Extraire le type
       const type = typeCell.text().trim();
@@ -361,7 +371,7 @@ export class FFEScraper {
   /**
    * Parse une date depuis le texte
    */
-  private parseDate(dateText: string): Date {
+  private parseDate(dateText: string, yearHint?: number): Date {
     if (!dateText) return new Date();
 
     // Mapping des mois français
@@ -398,29 +408,44 @@ export class FFEScraper {
       const month = monthMap[monthText];
 
       if (month !== undefined) {
-        // Logique intelligente pour déterminer l'année
+        // Si on a un hint d'année (depuis les lignes de titre), l'utiliser directement
+        if (yearHint !== undefined) {
+          return new Date(yearHint, month, day);
+        }
+
+        // Sinon, utiliser la logique de fallback pour déterminer l'année
         const currentYear = new Date().getFullYear();
-        const currentMonth = new Date().getMonth();
-
         let year = currentYear;
+        let calculatedDate = new Date(year, month, day);
 
-        // Si le mois du tournoi est dans le passé de l'année courante,
-        // on assume que c'est pour l'année suivante
-        if (month < currentMonth) {
+        // Si la date est trop loin dans le passé (plus de 2 ans),
+        // c'est probablement un tournoi de l'année précédente
+        const twoYearsAgo = new Date();
+        twoYearsAgo.setFullYear(currentYear - 2);
+
+        if (calculatedDate < twoYearsAgo) {
+          year = currentYear - 1;
+          calculatedDate = new Date(year, month, day);
+        }
+
+        // Si la date est encore trop loin dans le passé (plus de 2 ans),
+        // c'est peut-être encore plus ancien
+        if (calculatedDate < twoYearsAgo) {
+          year = currentYear - 2;
+          calculatedDate = new Date(year, month, day);
+        }
+
+        // Si la date est dans le futur lointain (plus de 2 ans),
+        // c'est probablement pour l'année suivante
+        const twoYearsFromNow = new Date();
+        twoYearsFromNow.setFullYear(currentYear + 2);
+
+        if (calculatedDate > twoYearsFromNow) {
           year = currentYear + 1;
+          calculatedDate = new Date(year, month, day);
         }
 
-        // Vérifier si la date calculée est dans le passé récent (moins de 30 jours)
-        // Si c'est le cas, c'est probablement pour l'année suivante
-        const calculatedDate = new Date(year, month, day);
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-        if (calculatedDate < thirtyDaysAgo) {
-          year = year + 1;
-        }
-
-        return new Date(year, month, day);
+        return calculatedDate;
       }
     }
 
