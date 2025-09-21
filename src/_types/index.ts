@@ -1,5 +1,22 @@
 // Types partagés entre le backend Next.js et le webcomponent Lit
 
+export interface ResultsLinks {
+  players?: string;
+  grid?: string;
+  ranking?: string;
+  fide?: string;
+  stats?: string;
+  round1?: string;
+  round2?: string;
+  round3?: string;
+  round4?: string;
+  round5?: string;
+  round6?: string;
+  round7?: string;
+  round8?: string;
+  round9?: string;
+  round10?: string;
+}
 export interface Tournament {
   id: string;
   name: string;
@@ -33,20 +50,7 @@ export interface Tournament {
   // Informations supplémentaires
   announcement?: string;
   regulationLink?: string;
-  resultsLinks?: {
-    players?: string;
-    grid?: string;
-    ranking?: string;
-    fide?: string;
-    stats?: string;
-    round1?: string;
-    round2?: string;
-    round3?: string;
-    round4?: string;
-    round5?: string;
-    round6?: string;
-    round7?: string;
-  };
+  resultsLinks?: ResultsLinks;
 }
 
 export interface Player {

@@ -1,5 +1,10 @@
 import * as cheerio from "cheerio";
-import { Tournament, Player, TournamentDetailsResponse } from "@/types/chess";
+import {
+  Tournament,
+  Player,
+  TournamentDetailsResponse,
+  ResultsLinks,
+} from "@/types/chess";
 
 export class FFEScraper {
   private baseUrl = "https://www.echecs.asso.fr";
@@ -1112,44 +1117,38 @@ export class FFEScraper {
     return "";
   }
 
-  private extractResultsLinks($: cheerio.Root): any {
-    const resultsLinks: any = {};
+  private extractResultsLinks($: cheerio.Root): ResultsLinks {
+    const resultsLinks: ResultsLinks = {};
 
     // Extraire tous les liens de résultats
     const resultSelectors = [
       {
         key: "players",
-        selector:
-          "#ctl00_ContentPlaceHolderMain_RepeaterResultats_ctl00_LinkResultats",
+        selector: "[href*='Action=Ls']",
       },
       {
         key: "grid",
-        selector:
-          "#ctl00_ContentPlaceHolderMain_RepeaterResultats_ctl02_LinkResultats",
+        selector: "[href*='Action=Berger']",
       },
       {
         key: "ranking",
-        selector:
-          "#ctl00_ContentPlaceHolderMain_RepeaterResultats_ctl04_LinkResultats",
+        selector: "[href*='Action=Cl']",
       },
       {
         key: "fide",
-        selector:
-          "#ctl00_ContentPlaceHolderMain_RepeaterResultats_ctl06_LinkResultats",
+        selector: "[href*='Action=Fide']",
       },
       {
         key: "stats",
-        selector:
-          "#ctl00_ContentPlaceHolderMain_RepeaterResultats_ctl22_LinkResultats",
+        selector: "[href*='Action=Stats']",
       },
     ];
 
     // Ajouter les rondes dynamiquement (Rd1 à Rd7)
-    for (let i = 1; i <= 7; i++) {
+    for (let i = 1; i <= 10; i++) {
       const roundKey = `round${i}`;
-      const roundSelector = `#ctl00_ContentPlaceHolderMain_RepeaterResultats_ctl${String(
-        8 + (i - 1) * 2
-      ).padStart(2, "0")}_LinkResultats`;
+      const twoDigits = String(i).padStart(2, "0");
+      const roundSelector = `[href*='Action=Rd${twoDigits}']`;
       resultSelectors.push({ key: roundKey, selector: roundSelector });
     }
 
