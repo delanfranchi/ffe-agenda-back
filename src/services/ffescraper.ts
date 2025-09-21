@@ -202,30 +202,44 @@ export class FFEScraper {
   ): Promise<Tournament> {
     const $ = cheerio.load(html);
 
-    // Extraire le nom du tournoi
-    const name = $("h1, h2, .title, .tournament-name").first().text().trim();
+    // Extraire le nom du tournoi depuis le titre principal
+    const name = this.extractTournamentName($);
 
-    // Extraire la date
+    // Extraire les dates
     const dateText = this.extractDate($);
     const date = this.parseDate(dateText);
+    const endDate = this.extractEndDate($);
 
-    // Extraire la ville
+    // Extraire la localisation
     const location = this.extractLocation($);
-
-    // Extraire le département
     const department = this.extractDepartment($);
+    const address = this.extractAddress($);
 
-    // Extraire le type
+    // Extraire les informations de compétition
     const type = this.extractType($);
-
-    // Déterminer le statut
     const status = this.extractStatus($);
+    const rounds = this.extractRounds($);
+    const timeControl = this.extractTimeControl($);
+    const pairingSystem = this.extractPairingSystem($);
 
-    // Extraire les informations supplémentaires
+    // Extraire les informations d'inscription
     const maxPlayers = this.extractMaxPlayers($);
     const currentPlayers = this.extractCurrentPlayers($);
     const registrationDeadline = this.extractRegistrationDeadline($);
-    const endDate = this.extractEndDate($);
+    const seniorFee = this.extractSeniorFee($);
+    const juniorFee = this.extractJuniorFee($);
+
+    // Extraire les informations d'organisation
+    const organizer = this.extractOrganizer($);
+    const referee = this.extractReferee($);
+    const contact = this.extractContact($);
+
+    // Extraire les prix
+    const prizes = this.extractPrizes($);
+
+    // Extraire les informations Elo
+    const eloRapid = this.extractEloRapid($);
+    const eloFide = this.extractEloFide($);
 
     // Construire l'URL
     const url = `${this.baseUrl}/FicheTournoi.aspx?Ref=${tournamentId}`;
@@ -243,6 +257,19 @@ export class FFEScraper {
       maxPlayers,
       currentPlayers,
       registrationDeadline: registrationDeadline?.toISOString(),
+      // Nouvelles propriétés étendues
+      address,
+      rounds,
+      timeControl,
+      pairingSystem,
+      seniorFee,
+      juniorFee,
+      organizer,
+      referee,
+      contact,
+      prizes,
+      eloRapid,
+      eloFide,
     };
   }
 
@@ -271,9 +298,6 @@ export class FFEScraper {
 
         // Extraire le nom complet
         const fullName = nameCell.text().trim();
-        const nameParts = fullName.split(" ");
-        const firstName = nameParts[0] || "";
-        const lastName = nameParts.slice(1).join(" ") || "";
 
         // Extraire l'Elo
         const eloText = eloCell.text().trim();
@@ -291,17 +315,13 @@ export class FFEScraper {
         // Extraire le club
         const club = clubCell.text().trim();
 
-        // Générer un ID unique
-        const playerId =
-          `${lastName.toLowerCase()}-${firstName.toLowerCase()}`.replace(
-            /\s+/g,
-            "-"
-          );
+        // Générer un ID unique basé sur le nom complet et l'Elo
+        const nameSlug = fullName.toLowerCase().replace(/\s+/g, "-");
+        const playerId = `${nameSlug}-${elo}`;
 
         players.push({
           id: playerId,
-          name: lastName,
-          firstName,
+          name: fullName,
           club: club,
           elo,
           category: category,
@@ -652,5 +672,269 @@ export class FFEScraper {
     }
 
     return undefined;
+  }
+
+  // Nouvelles méthodes d'extraction pour les détails étendus
+  private extractTournamentName($: cheerio.Root): string {
+    // Chercher le nom dans le titre principal
+    const titleSelectors = [
+      "h1",
+      "h2",
+      ".title",
+      ".tournament-name",
+      "table tr:first-child td:first-child",
+    ];
+
+    for (const selector of titleSelectors) {
+      const element = $(selector);
+      if (element.length > 0) {
+        const text = element.text().trim();
+        if (text && text.length > 0) {
+          return text;
+        }
+      }
+    }
+
+    return "";
+  }
+
+  private extractAddress($: cheerio.Root): string {
+    const addressSelectors = [
+      "td:contains('Adresse')",
+      "th:contains('Adresse')",
+    ];
+
+    for (const selector of addressSelectors) {
+      const element = $(selector);
+      if (element.length > 0) {
+        const nextCell = element.next();
+        if (nextCell.length > 0) {
+          return nextCell.text().trim();
+        }
+      }
+    }
+
+    return "";
+  }
+
+  private extractRounds($: cheerio.Root): number | undefined {
+    const roundsSelectors = [
+      "td:contains('Nombre de rondes')",
+      "th:contains('Nombre de rondes')",
+      "td:contains('rondes')",
+      "th:contains('rondes')",
+    ];
+
+    for (const selector of roundsSelectors) {
+      const element = $(selector);
+      if (element.length > 0) {
+        const nextCell = element.next();
+        if (nextCell.length > 0) {
+          const text = nextCell.text().trim();
+          const match = text.match(/(\d+)/);
+          if (match) {
+            return parseInt(match[1]);
+          }
+        }
+      }
+    }
+
+    return undefined;
+  }
+
+  private extractTimeControl($: cheerio.Root): string {
+    const timeControlSelectors = [
+      "td:contains('Cadence')",
+      "th:contains('Cadence')",
+      "td:contains('Temps')",
+      "th:contains('Temps')",
+    ];
+
+    for (const selector of timeControlSelectors) {
+      const element = $(selector);
+      if (element.length > 0) {
+        const nextCell = element.next();
+        if (nextCell.length > 0) {
+          return nextCell.text().trim();
+        }
+      }
+    }
+
+    return "";
+  }
+
+  private extractPairingSystem($: cheerio.Root): string {
+    const pairingSelectors = [
+      "td:contains('Appariements')",
+      "th:contains('Appariements')",
+      "td:contains('Système')",
+      "th:contains('Système')",
+    ];
+
+    for (const selector of pairingSelectors) {
+      const element = $(selector);
+      if (element.length > 0) {
+        const nextCell = element.next();
+        if (nextCell.length > 0) {
+          return nextCell.text().trim();
+        }
+      }
+    }
+
+    return "";
+  }
+
+  private extractSeniorFee($: cheerio.Root): string {
+    const feeSelectors = [
+      "td:contains('Inscription Senior')",
+      "th:contains('Inscription Senior')",
+    ];
+
+    for (const selector of feeSelectors) {
+      const element = $(selector);
+      if (element.length > 0) {
+        const nextCell = element.next();
+        if (nextCell.length > 0) {
+          return nextCell.text().trim();
+        }
+      }
+    }
+
+    return "";
+  }
+
+  private extractJuniorFee($: cheerio.Root): string {
+    const feeSelectors = [
+      "td:contains('Inscription Jeunes')",
+      "th:contains('Inscription Jeunes')",
+    ];
+
+    for (const selector of feeSelectors) {
+      const element = $(selector);
+      if (element.length > 0) {
+        const nextCell = element.next();
+        if (nextCell.length > 0) {
+          return nextCell.text().trim();
+        }
+      }
+    }
+
+    return "";
+  }
+
+  private extractOrganizer($: cheerio.Root): string {
+    const organizerSelectors = [
+      "td:contains('Organisateur')",
+      "th:contains('Organisateur')",
+    ];
+
+    for (const selector of organizerSelectors) {
+      const element = $(selector);
+      if (element.length > 0) {
+        const nextCell = element.next();
+        if (nextCell.length > 0) {
+          return nextCell.text().trim();
+        }
+      }
+    }
+
+    return "";
+  }
+
+  private extractReferee($: cheerio.Root): string {
+    const refereeSelectors = [
+      "td:contains('Arbitre')",
+      "th:contains('Arbitre')",
+    ];
+
+    for (const selector of refereeSelectors) {
+      const element = $(selector);
+      if (element.length > 0) {
+        const nextCell = element.next();
+        if (nextCell.length > 0) {
+          return nextCell.text().trim();
+        }
+      }
+    }
+
+    return "";
+  }
+
+  private extractContact($: cheerio.Root): string {
+    const contactSelectors = [
+      "td:contains('Contact')",
+      "th:contains('Contact')",
+    ];
+
+    for (const selector of contactSelectors) {
+      const element = $(selector);
+      if (element.length > 0) {
+        const nextCell = element.next();
+        if (nextCell.length > 0) {
+          return nextCell.text().trim();
+        }
+      }
+    }
+
+    return "";
+  }
+
+  private extractPrizes($: cheerio.Root): string {
+    const prizeSelectors = [
+      "td:contains('Prix')",
+      "th:contains('Prix')",
+      "td:contains('1er Prix')",
+      "th:contains('1er Prix')",
+    ];
+
+    for (const selector of prizeSelectors) {
+      const element = $(selector);
+      if (element.length > 0) {
+        const nextCell = element.next();
+        if (nextCell.length > 0) {
+          return nextCell.text().trim();
+        }
+      }
+    }
+
+    return "";
+  }
+
+  private extractEloRapid($: cheerio.Root): string {
+    const eloSelectors = [
+      "td:contains('Prise en compte Elo Rapide')",
+      "th:contains('Prise en compte Elo Rapide')",
+    ];
+
+    for (const selector of eloSelectors) {
+      const element = $(selector);
+      if (element.length > 0) {
+        const nextCell = element.next();
+        if (nextCell.length > 0) {
+          return nextCell.text().trim();
+        }
+      }
+    }
+
+    return "";
+  }
+
+  private extractEloFide($: cheerio.Root): string {
+    const eloSelectors = [
+      "td:contains('Prise en compte Elo FIDE')",
+      "th:contains('Prise en compte Elo FIDE')",
+    ];
+
+    for (const selector of eloSelectors) {
+      const element = $(selector);
+      if (element.length > 0) {
+        const nextCell = element.next();
+        if (nextCell.length > 0) {
+          return nextCell.text().trim();
+        }
+      }
+    }
+
+    return "";
   }
 }

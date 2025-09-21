@@ -14,12 +14,24 @@ export interface Tournament {
   maxPlayers?: number;
   currentPlayers?: number;
   registrationDeadline?: string; // ISO format
+  // Nouvelles propriétés étendues
+  address?: string;
+  rounds?: number;
+  timeControl?: string;
+  pairingSystem?: string;
+  seniorFee?: string;
+  juniorFee?: string;
+  organizer?: string;
+  referee?: string;
+  contact?: string;
+  prizes?: string;
+  eloRapid?: string;
+  eloFide?: string;
 }
 
 export interface Player {
   id: string;
   name: string;
-  firstName: string;
   club: string;
   elo: number;
   category: string;
