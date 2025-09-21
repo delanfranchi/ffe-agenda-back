@@ -24,9 +24,29 @@ export interface Tournament {
   organizer?: string;
   referee?: string;
   contact?: string;
-  prizes?: string;
+  // Prix détaillés
+  firstPrize?: string;
+  secondPrize?: string;
+  thirdPrize?: string;
   eloRapid?: string;
   eloFide?: string;
+  // Informations supplémentaires
+  announcement?: string;
+  regulationLink?: string;
+  resultsLinks?: {
+    players?: string;
+    grid?: string;
+    ranking?: string;
+    fide?: string;
+    stats?: string;
+    round1?: string;
+    round2?: string;
+    round3?: string;
+    round4?: string;
+    round5?: string;
+    round6?: string;
+    round7?: string;
+  };
 }
 
 export interface Player {

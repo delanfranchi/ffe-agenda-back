@@ -234,12 +234,19 @@ export class FFEScraper {
     const referee = this.extractReferee($);
     const contact = this.extractContact($);
 
-    // Extraire les prix
-    const prizes = this.extractPrizes($);
+    // Extraire les prix détaillés
+    const firstPrize = this.extractFirstPrize($);
+    const secondPrize = this.extractSecondPrize($);
+    const thirdPrize = this.extractThirdPrize($);
 
     // Extraire les informations Elo
     const eloRapid = this.extractEloRapid($);
     const eloFide = this.extractEloFide($);
+
+    // Extraire les informations supplémentaires
+    const announcement = this.extractAnnouncement($);
+    const regulationLink = this.extractRegulationLink($);
+    const resultsLinks = this.extractResultsLinks($);
 
     // Construire l'URL
     const url = `${this.baseUrl}/FicheTournoi.aspx?Ref=${tournamentId}`;
@@ -267,9 +274,14 @@ export class FFEScraper {
       organizer,
       referee,
       contact,
-      prizes,
+      firstPrize,
+      secondPrize,
+      thirdPrize,
       eloRapid,
       eloFide,
+      announcement,
+      regulationLink,
+      resultsLinks,
     };
   }
 
@@ -314,6 +326,17 @@ export class FFEScraper {
 
         // Extraire le club
         const club = clubCell.text().trim();
+
+        // Skip placeholder/header entries with generic names
+        if (
+          fullName === "Nom" ||
+          club === "Club" ||
+          category === "Cat." ||
+          federation === "Fede" ||
+          league === "Ligue"
+        ) {
+          return;
+        }
 
         // Générer un ID unique basé sur le nom complet et l'Elo
         const nameSlug = fullName.toLowerCase().replace(/\s+/g, "-");
@@ -676,7 +699,13 @@ export class FFEScraper {
 
   // Nouvelles méthodes d'extraction pour les détails étendus
   private extractTournamentName($: cheerio.Root): string {
-    // Chercher le nom dans le titre principal
+    // Utiliser l'ID spécifique de la FFE
+    const nameElement = $("#ctl00_ContentPlaceHolderMain_LabelNom");
+    if (nameElement.length > 0) {
+      return nameElement.text().trim();
+    }
+
+    // Fallback vers les sélecteurs génériques
     const titleSelectors = [
       "h1",
       "h2",
@@ -699,6 +728,13 @@ export class FFEScraper {
   }
 
   private extractAddress($: cheerio.Root): string {
+    // Utiliser l'ID spécifique de la FFE
+    const addressElement = $("#ctl00_ContentPlaceHolderMain_LabelAdresse");
+    if (addressElement.length > 0) {
+      return addressElement.text().trim();
+    }
+
+    // Fallback vers les sélecteurs génériques
     const addressSelectors = [
       "td:contains('Adresse')",
       "th:contains('Adresse')",
@@ -718,6 +754,17 @@ export class FFEScraper {
   }
 
   private extractRounds($: cheerio.Root): number | undefined {
+    // Utiliser l'ID spécifique de la FFE
+    const roundsElement = $("#ctl00_ContentPlaceHolderMain_LabelNbrRondes");
+    if (roundsElement.length > 0) {
+      const text = roundsElement.text().trim();
+      const match = text.match(/(\d+)/);
+      if (match) {
+        return parseInt(match[1]);
+      }
+    }
+
+    // Fallback
     const roundsSelectors = [
       "td:contains('Nombre de rondes')",
       "th:contains('Nombre de rondes')",
@@ -743,6 +790,13 @@ export class FFEScraper {
   }
 
   private extractTimeControl($: cheerio.Root): string {
+    // Utiliser l'ID spécifique de la FFE
+    const timeControlElement = $("#ctl00_ContentPlaceHolderMain_LabelCadence");
+    if (timeControlElement.length > 0) {
+      return timeControlElement.text().trim();
+    }
+
+    // Fallback
     const timeControlSelectors = [
       "td:contains('Cadence')",
       "th:contains('Cadence')",
@@ -764,6 +818,13 @@ export class FFEScraper {
   }
 
   private extractPairingSystem($: cheerio.Root): string {
+    // Utiliser l'ID spécifique de la FFE
+    const pairingElement = $("#ctl00_ContentPlaceHolderMain_LabelAppariements");
+    if (pairingElement.length > 0) {
+      return pairingElement.text().trim();
+    }
+
+    // Fallback
     const pairingSelectors = [
       "td:contains('Appariements')",
       "th:contains('Appariements')",
@@ -785,6 +846,15 @@ export class FFEScraper {
   }
 
   private extractSeniorFee($: cheerio.Root): string {
+    // Utiliser l'ID spécifique de la FFE
+    const seniorFeeElement = $(
+      "#ctl00_ContentPlaceHolderMain_LabelInscriptionSenior"
+    );
+    if (seniorFeeElement.length > 0) {
+      return seniorFeeElement.text().trim();
+    }
+
+    // Fallback
     const feeSelectors = [
       "td:contains('Inscription Senior')",
       "th:contains('Inscription Senior')",
@@ -804,6 +874,15 @@ export class FFEScraper {
   }
 
   private extractJuniorFee($: cheerio.Root): string {
+    // Utiliser l'ID spécifique de la FFE
+    const juniorFeeElement = $(
+      "#ctl00_ContentPlaceHolderMain_LabelInscriptionJeune"
+    );
+    if (juniorFeeElement.length > 0) {
+      return juniorFeeElement.text().trim();
+    }
+
+    // Fallback
     const feeSelectors = [
       "td:contains('Inscription Jeunes')",
       "th:contains('Inscription Jeunes')",
@@ -823,6 +902,15 @@ export class FFEScraper {
   }
 
   private extractOrganizer($: cheerio.Root): string {
+    // Utiliser l'ID spécifique de la FFE
+    const organizerElement = $(
+      "#ctl00_ContentPlaceHolderMain_LabelOrganisateur"
+    );
+    if (organizerElement.length > 0) {
+      return organizerElement.text().trim();
+    }
+
+    // Fallback
     const organizerSelectors = [
       "td:contains('Organisateur')",
       "th:contains('Organisateur')",
@@ -842,6 +930,13 @@ export class FFEScraper {
   }
 
   private extractReferee($: cheerio.Root): string {
+    // Utiliser l'ID spécifique de la FFE
+    const refereeElement = $("#ctl00_ContentPlaceHolderMain_LabelArbitre");
+    if (refereeElement.length > 0) {
+      return refereeElement.text().trim();
+    }
+
+    // Fallback
     const refereeSelectors = [
       "td:contains('Arbitre')",
       "th:contains('Arbitre')",
@@ -861,6 +956,13 @@ export class FFEScraper {
   }
 
   private extractContact($: cheerio.Root): string {
+    // Utiliser l'ID spécifique de la FFE
+    const contactElement = $("#ctl00_ContentPlaceHolderMain_LabelContact");
+    if (contactElement.length > 0) {
+      return contactElement.text().trim();
+    }
+
+    // Fallback
     const contactSelectors = [
       "td:contains('Contact')",
       "th:contains('Contact')",
@@ -879,28 +981,14 @@ export class FFEScraper {
     return "";
   }
 
-  private extractPrizes($: cheerio.Root): string {
-    const prizeSelectors = [
-      "td:contains('Prix')",
-      "th:contains('Prix')",
-      "td:contains('1er Prix')",
-      "th:contains('1er Prix')",
-    ];
-
-    for (const selector of prizeSelectors) {
-      const element = $(selector);
-      if (element.length > 0) {
-        const nextCell = element.next();
-        if (nextCell.length > 0) {
-          return nextCell.text().trim();
-        }
-      }
+  private extractEloRapid($: cheerio.Root): string {
+    // Utiliser l'ID spécifique de la FFE
+    const eloRapidElement = $("#ctl00_ContentPlaceHolderMain_LabelEloRapide");
+    if (eloRapidElement.length > 0) {
+      return eloRapidElement.text().trim();
     }
 
-    return "";
-  }
-
-  private extractEloRapid($: cheerio.Root): string {
+    // Fallback
     const eloSelectors = [
       "td:contains('Prise en compte Elo Rapide')",
       "th:contains('Prise en compte Elo Rapide')",
@@ -920,6 +1008,13 @@ export class FFEScraper {
   }
 
   private extractEloFide($: cheerio.Root): string {
+    // Utiliser l'ID spécifique de la FFE
+    const eloFideElement = $("#ctl00_ContentPlaceHolderMain_LabelEloFide");
+    if (eloFideElement.length > 0) {
+      return eloFideElement.text().trim();
+    }
+
+    // Fallback
     const eloSelectors = [
       "td:contains('Prise en compte Elo FIDE')",
       "th:contains('Prise en compte Elo FIDE')",
@@ -936,5 +1031,113 @@ export class FFEScraper {
     }
 
     return "";
+  }
+
+  // Nouvelles méthodes pour les prix détaillés et informations supplémentaires
+  private extractFirstPrize($: cheerio.Root): string {
+    // Utiliser l'ID spécifique de la FFE
+    const firstPrizeElement = $("#ctl00_ContentPlaceHolderMain_LabelPrix1");
+    if (firstPrizeElement.length > 0) {
+      return firstPrizeElement.text().trim();
+    }
+
+    return "";
+  }
+
+  private extractSecondPrize($: cheerio.Root): string {
+    // Utiliser l'ID spécifique de la FFE
+    const secondPrizeElement = $("#ctl00_ContentPlaceHolderMain_LabelPrix2");
+    if (secondPrizeElement.length > 0) {
+      return secondPrizeElement.text().trim();
+    }
+
+    return "";
+  }
+
+  private extractThirdPrize($: cheerio.Root): string {
+    // Utiliser l'ID spécifique de la FFE
+    const thirdPrizeElement = $("#ctl00_ContentPlaceHolderMain_LabelPrix3");
+    if (thirdPrizeElement.length > 0) {
+      return thirdPrizeElement.text().trim();
+    }
+
+    return "";
+  }
+
+  private extractAnnouncement($: cheerio.Root): string {
+    // Utiliser l'ID spécifique de la FFE
+    const announcementElement = $("#ctl00_ContentPlaceHolderMain_LabelAnnonce");
+    if (announcementElement.length > 0) {
+      return announcementElement.text().trim();
+    }
+
+    return "";
+  }
+
+  private extractRegulationLink($: cheerio.Root): string {
+    // Utiliser l'ID spécifique de la FFE
+    const regulationLinkElement = $("#ctl00_ContentPlaceHolderMain_LinkRI");
+    if (regulationLinkElement.length > 0) {
+      const href = regulationLinkElement.attr("href");
+      if (href) {
+        return this.baseUrl + "/" + href;
+      }
+    }
+
+    return "";
+  }
+
+  private extractResultsLinks($: cheerio.Root): any {
+    const resultsLinks: any = {};
+
+    // Extraire tous les liens de résultats
+    const resultSelectors = [
+      {
+        key: "players",
+        selector:
+          "#ctl00_ContentPlaceHolderMain_RepeaterResultats_ctl00_LinkResultats",
+      },
+      {
+        key: "grid",
+        selector:
+          "#ctl00_ContentPlaceHolderMain_RepeaterResultats_ctl02_LinkResultats",
+      },
+      {
+        key: "ranking",
+        selector:
+          "#ctl00_ContentPlaceHolderMain_RepeaterResultats_ctl04_LinkResultats",
+      },
+      {
+        key: "fide",
+        selector:
+          "#ctl00_ContentPlaceHolderMain_RepeaterResultats_ctl06_LinkResultats",
+      },
+      {
+        key: "stats",
+        selector:
+          "#ctl00_ContentPlaceHolderMain_RepeaterResultats_ctl22_LinkResultats",
+      },
+    ];
+
+    // Ajouter les rondes dynamiquement (Rd1 à Rd7)
+    for (let i = 1; i <= 7; i++) {
+      const roundKey = `round${i}`;
+      const roundSelector = `#ctl00_ContentPlaceHolderMain_RepeaterResultats_ctl${String(
+        8 + (i - 1) * 2
+      ).padStart(2, "0")}_LinkResultats`;
+      resultSelectors.push({ key: roundKey, selector: roundSelector });
+    }
+
+    resultSelectors.forEach(({ key, selector }) => {
+      const element = $(selector);
+      if (element.length > 0) {
+        const href = element.attr("href");
+        if (href) {
+          resultsLinks[key] = this.baseUrl + "/" + href;
+        }
+      }
+    });
+
+    return resultsLinks;
   }
 }
