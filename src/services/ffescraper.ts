@@ -355,8 +355,28 @@ export class FFEScraper {
       const month = monthMap[monthText];
 
       if (month !== undefined) {
-        // Utiliser l'année courante (2025) car les tournois affichés sont pour 2025
-        const year = 2025;
+        // Logique intelligente pour déterminer l'année
+        const currentYear = new Date().getFullYear();
+        const currentMonth = new Date().getMonth();
+
+        let year = currentYear;
+
+        // Si le mois du tournoi est dans le passé de l'année courante,
+        // on assume que c'est pour l'année suivante
+        if (month < currentMonth) {
+          year = currentYear + 1;
+        }
+
+        // Vérifier si la date calculée est dans le passé récent (moins de 30 jours)
+        // Si c'est le cas, c'est probablement pour l'année suivante
+        const calculatedDate = new Date(year, month, day);
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+        if (calculatedDate < thirtyDaysAgo) {
+          year = year + 1;
+        }
+
         return new Date(year, month, day);
       }
     }
