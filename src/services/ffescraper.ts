@@ -116,37 +116,50 @@ export class FFEScraper {
   }
 
   /**
+   * Trouve l'année en remontant vers la ligne liste_titre précédente
+   */
+  private findPreviousYear(
+    $currentRow: cheerio.Cheerio,
+    $: cheerio.Root
+  ): number | undefined {
+    let $prevRow = $currentRow.prev();
+
+    while ($prevRow.length > 0) {
+      // Si c'est une ligne de titre (mois/année), extraire l'année
+      if (
+        $prevRow.hasClass("liste_titre") ||
+        $prevRow.find("td.liste_titre").length > 0
+      ) {
+        const titleText = $prevRow.text().trim();
+        // Chercher une année dans le texte (format: "mois 20XX")
+        return parseInt(titleText.split(" ")[1]);
+      }
+      $prevRow = $prevRow.prev();
+    }
+
+    return undefined;
+  }
+
+  /**
    * Parse la liste des tournois depuis la page ListeTournois
    */
   private parseTournamentsList(html: string): Tournament[] {
     const $ = cheerio.load(html);
     const tournaments: Tournament[] = [];
-    let currentYear: number | undefined; // Année par défaut
 
     // Chercher le tableau des tournois
     $("table tr").each((_index, element) => {
       const $row = $(element);
 
-      // Si c'est une ligne de titre (mois/année), extraire l'année
-      if (
-        $row.hasClass("liste_titre") ||
-        $row.find("td.liste_titre").length > 0
-      ) {
-        const titleText = $row.text().trim();
-        // Chercher une année dans le texte (format: "mois 20XX")
-        const yearMatch = titleText.match(/(20\d{2})/);
-        if (yearMatch) {
-          currentYear = parseInt(yearMatch[1]);
-        }
-        return;
-      }
-      if (!currentYear) {
+      // Skip les lignes qui ne sont pas des lignes de tournois
+      const $cells = $row.find("td");
+      if (!($row.hasClass("liste_clair") || $row.hasClass("liste_fonce"))) {
         return;
       }
 
-      // Skip les lignes vides ou avec moins de cellules
-      const $cells = $row.find("td");
-      if (!($row.hasClass("liste_clair") || $row.hasClass("liste_fonce"))) {
+      // Trouver l'année en remontant vers la ligne liste_titre précédente
+      const currentYear = this.findPreviousYear($row, $);
+      if (!currentYear) {
         return;
       }
 
@@ -180,7 +193,7 @@ export class FFEScraper {
       const department = parseInt(departmentCell.text().trim()) || 0;
       if (department === 0) return;
 
-      // Extraire la date avec l'année courante
+      // Extraire la date avec l'année trouvée
       const dateText = dateCell.text().trim();
       const date = this.parseDate(dateText, currentYear);
 
