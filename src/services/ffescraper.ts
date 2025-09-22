@@ -121,7 +121,7 @@ export class FFEScraper {
   private parseTournamentsList(html: string): Tournament[] {
     const $ = cheerio.load(html);
     const tournaments: Tournament[] = [];
-    let currentYear = new Date().getFullYear(); // Année par défaut
+    let currentYear: number | undefined; // Année par défaut
 
     // Chercher le tableau des tournois
     $("table tr").each((_index, element) => {
@@ -140,10 +140,13 @@ export class FFEScraper {
         }
         return;
       }
+      if (!currentYear) {
+        return;
+      }
 
       // Skip les lignes vides ou avec moins de cellules
       const $cells = $row.find("td");
-      if ($cells.length < 8) {
+      if (!($row.hasClass("liste_clair") || $row.hasClass("liste_fonce"))) {
         return;
       }
 
