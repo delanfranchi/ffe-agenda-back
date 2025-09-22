@@ -118,10 +118,7 @@ export class FFEScraper {
   /**
    * Trouve l'année en remontant vers la ligne liste_titre précédente
    */
-  private findPreviousYear(
-    $currentRow: cheerio.Cheerio,
-    $: cheerio.Root
-  ): number | undefined {
+  private findPreviousYear($currentRow: cheerio.Cheerio): number | undefined {
     let $prevRow = $currentRow.prev();
 
     while ($prevRow.length > 0) {
@@ -1198,7 +1195,7 @@ export class FFEScraper {
       if (element.length > 0) {
         const href = element.attr("href");
         if (href) {
-          resultsLinks[key] = this.baseUrl + "/" + href;
+          resultsLinks[key as keyof ResultsLinks] = this.baseUrl + "/" + href;
         }
       }
     });
