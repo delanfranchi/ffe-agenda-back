@@ -20,35 +20,53 @@ export class FFEScraper {
     { data: string[]; timestamp: number }
   >();
 
+  // Set pour stocker les IDs des événements passés (5+ jours)
+  private pastEventsIds = new Set<string>();
+
   // TTL du cache (20 heures) - aligné avec la fréquence de mise à jour FFE
   private readonly CACHE_TTL = 20 * 60 * 60 * 1000;
 
   /**
    * Récupère la liste des tournois pour un département donné
    * Nouvelle approche : extraire les IDs depuis ListeTournois.aspx puis récupérer les détails en parallèle
+   * Filtre les événements passés après récupération des détails
    */
   async getTournamentsByDepartment(department: number): Promise<Tournament[]> {
     try {
       // 1. Récupérer les IDs des tournois depuis la page du comité (avec cache)
       const tournamentIds = await this.getTournamentIdsFromComite(department);
 
-      // 2. Récupérer les détails de chaque tournoi EN PARALLÈLE (sans joueurs pour optimiser)
-      const tournamentPromises = tournamentIds.map(async (tournamentId) => {
-        try {
-          const tournamentDetails = await this.getTournamentDetails(
-            tournamentId,
-            false
-          );
-          const tournament = tournamentDetails.tournament;
-          return tournament;
-        } catch (error) {
-          console.warn(
-            `Failed to fetch details for tournament ${tournamentId}:`,
-            error
-          );
-          return null;
-        }
+      // 2. Filtrer les IDs déjà connus comme passés
+      const filteredTournamentIds = tournamentIds.filter((tournamentId) => {
+        return !this.pastEventsIds.has(tournamentId);
       });
+
+      // 3. Récupérer les détails de chaque tournoi EN PARALLÈLE (sans joueurs pour optimiser)
+      const tournamentPromises = filteredTournamentIds.map(
+        async (tournamentId) => {
+          try {
+            const tournamentDetails = await this.getTournamentDetails(
+              tournamentId,
+              false
+            );
+            const tournament = tournamentDetails.tournament;
+
+            // Vérifier si le tournoi est passé après récupération des détails complets
+            if (this.isTournamentPast(tournament)) {
+              this.pastEventsIds.add(tournamentId);
+              return null;
+            }
+
+            return tournament;
+          } catch (error) {
+            console.warn(
+              `Failed to fetch details for tournament ${tournamentId}:`,
+              error
+            );
+            return null;
+          }
+        }
+      );
 
       // 4. Attendre toutes les requêtes en parallèle
       const tournamentResults = await Promise.all(tournamentPromises);
@@ -208,19 +226,30 @@ export class FFEScraper {
   }
 
   /**
-   * Vérifie si un tournoi est récent (pas passé de plus de 2 jours)
+   * Vérifie si un tournoi est passé (terminé depuis plus de 5 jours)
    */
-  private isTournamentRecent(tournament: Tournament): boolean {
+  private isTournamentPast(tournament: Tournament): boolean {
     const now = new Date();
-    const twoDaysAgo = new Date(now);
-    twoDaysAgo.setDate(now.getDate() - 2);
+    const fiveDaysAgo = new Date(now);
+    fiveDaysAgo.setDate(now.getDate() - 5);
 
     // Utiliser la date de fin si disponible, sinon la date de début
     const endDate = tournament.endDate
       ? new Date(tournament.endDate)
       : new Date(tournament.startDate);
 
-    return endDate >= twoDaysAgo;
+    return endDate < fiveDaysAgo;
+  }
+
+  /**
+   * Vérifie si un tournoi est passé en se basant uniquement sur sa date de fin
+   */
+  private isTournamentPastByDate(endDate: Date): boolean {
+    const now = new Date();
+    const fiveDaysAgo = new Date(now);
+    fiveDaysAgo.setDate(now.getDate() - 5);
+
+    return endDate < fiveDaysAgo;
   }
 
   /**

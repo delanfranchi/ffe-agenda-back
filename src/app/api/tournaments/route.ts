@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { FFEScraper } from "@/services/ffescraper";
 import { ApiResponse, Tournament, TournamentListResponse } from "@/types/chess";
 
+// Instance unique du scraper pour maintenir le Set pastEventsIds
+let scraperInstance: FFEScraper | null = null;
+
 // Cache pour 20 heures (72000 secondes) - aligné avec la fréquence de mise à jour FFE
 export const revalidate = 72000;
 
@@ -39,7 +42,11 @@ export async function GET(request: NextRequest) {
       return num;
     });
 
-    const scraper = new FFEScraper();
+    // Utiliser l'instance unique pour maintenir le Set pastEventsIds
+    if (!scraperInstance) {
+      scraperInstance = new FFEScraper();
+    }
+    const scraper = scraperInstance;
 
     // Récupérer les tournois pour chaque département en parallèle
     const tournamentPromises = departmentNumbers.map((dept) =>

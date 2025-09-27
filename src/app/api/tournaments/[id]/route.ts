@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { FFEScraper } from "@/services/ffescraper";
 import { ApiResponse, TournamentDetailsResponse } from "@/types/chess";
 
-// Cache pour 14 heures (50400 secondes)
-export const revalidate = 50400;
+// Instance unique du scraper pour maintenir le Set pastEventsIds
+let scraperInstance: FFEScraper | null = null;
+
+// Cache pour 10 heures (36000 secondes)
+export const revalidate = 36000;
 
 /**
  * API pour récupérer les détails d'un tournoi spécifique
@@ -31,14 +34,34 @@ export async function GET(
       );
     }
 
-    const scraper = new FFEScraper();
+    // Utiliser l'instance unique pour maintenir le Set pastEventsIds
+    if (!scraperInstance) {
+      scraperInstance = new FFEScraper();
+    }
+    const scraper = scraperInstance;
+
     const tournamentDetails = await scraper.getTournamentDetails(tournamentId);
 
-    return NextResponse.json<ApiResponse<TournamentDetailsResponse>>({
+    const apiResponse = NextResponse.json<
+      ApiResponse<TournamentDetailsResponse>
+    >({
       success: true,
       data: tournamentDetails,
       lastUpdated: new Date().toISOString(),
     });
+
+    // Ajouter des headers de cache HTTP
+    apiResponse.headers.set(
+      "Cache-Control",
+      "public, s-maxage=36000, stale-while-revalidate=144000"
+    );
+    apiResponse.headers.set("CDN-Cache-Control", "public, s-maxage=36000");
+    apiResponse.headers.set(
+      "Vercel-CDN-Cache-Control",
+      "public, s-maxage=36000"
+    );
+
+    return apiResponse;
   } catch (error) {
     console.error("Error in tournament details API:", error);
 
