@@ -45,8 +45,8 @@ export class FFEScraper {
           if (this.isTournamentRecent(tournament)) {
             // Exclure uniquement les joueurs pour alléger la réponse
             // Garder toutes les autres données (adresse, organisateur, prix, etc.)
-            const { players, ...tournamentWithoutPlayers } = tournament;
-            return tournamentWithoutPlayers;
+            delete tournament["players"];
+            return tournament;
           }
           return null;
         } catch (error) {
@@ -127,10 +127,8 @@ export class FFEScraper {
         players,
       };
 
-      // Mettre en cache (sans joueurs pour la liste)
-      const { players: _, ...tournamentForCache } = tournamentWithPlayers;
       this.tournamentCache.set(tournamentId, {
-        data: tournamentForCache,
+        data: tournament,
         timestamp: Date.now(),
       });
 
@@ -684,30 +682,6 @@ export class FFEScraper {
    */
   private parseDate(dateText: string, yearHint?: number): Date {
     if (!dateText) return new Date();
-
-    // Mapping des mois français
-    const monthMap: { [key: string]: number } = {
-      "janv.": 0,
-      janvier: 0,
-      "févr.": 1,
-      février: 1,
-      mars: 2,
-      "avr.": 3,
-      avril: 3,
-      mai: 4,
-      juin: 5,
-      "juil.": 6,
-      juillet: 6,
-      août: 7,
-      "sept.": 8,
-      septembre: 8,
-      "oct.": 9,
-      octobre: 9,
-      "nov.": 10,
-      novembre: 10,
-      "déc.": 11,
-      décembre: 11,
-    };
 
     // Format complet: "dimanche 28 septembre 2025 - dimanche 28 septembre 2025"
     const fullDateFormat = /(\w+)\s+(\d{1,2})\s+(\w+)\s+(\d{4})/;
