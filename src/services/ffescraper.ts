@@ -40,15 +40,7 @@ export class FFEScraper {
             false
           );
           const tournament = tournamentDetails.tournament;
-
-          // 3. Filtrer les événements passés de plus de 2 jours
-          if (this.isTournamentRecent(tournament)) {
-            // Exclure uniquement les joueurs pour alléger la réponse
-            // Garder toutes les autres données (adresse, organisateur, prix, etc.)
-            delete tournament["players"];
-            return tournament;
-          }
-          return null;
+          return tournament;
         } catch (error) {
           console.warn(
             `Failed to fetch details for tournament ${tournamentId}:`,
