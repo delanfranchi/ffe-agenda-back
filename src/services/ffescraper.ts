@@ -155,7 +155,7 @@ export class FFEScraper {
       }
 
       // Trouver l'année en remontant vers la ligne liste_titre précédente
-      const currentYear = this.findPreviousYear($row, $);
+      const currentYear = this.findPreviousYear($row);
       if (!currentYear) {
         return;
       }
@@ -192,7 +192,7 @@ export class FFEScraper {
 
       // Extraire la date avec l'année trouvée
       const dateText = dateCell.text().trim();
-      const date = this.parseDate(dateText, currentYear);
+      const { startDate } = this.parseDateRange(dateText, currentYear);
 
       // Extraire le type
       const type = typeCell.text().trim();
@@ -209,7 +209,7 @@ export class FFEScraper {
       tournaments.push({
         id: tournamentId,
         name,
-        date: date.toISOString(),
+        startDate: this.formatDateWithTimezone(startDate),
         location: city,
         department,
         type,
@@ -235,8 +235,7 @@ export class FFEScraper {
 
     // Extraire les dates
     const dateText = this.extractDate($);
-    const date = this.parseDate(dateText);
-    const endDate = this.extractEndDate($);
+    const { startDate, endDate } = this.parseDateRange(dateText);
 
     // Extraire la localisation
     const location = this.extractLocation($);
@@ -252,7 +251,6 @@ export class FFEScraper {
 
     // Extraire les informations d'inscription
     const maxPlayers = this.extractMaxPlayers($);
-    const currentPlayers = this.extractCurrentPlayers($);
     const registrationDeadline = this.extractRegistrationDeadline($);
     const seniorFee = this.extractSeniorFee($);
     const juniorFee = this.extractJuniorFee($);
@@ -282,16 +280,17 @@ export class FFEScraper {
     return {
       id: tournamentId,
       name: name || `Tournoi ${tournamentId}`,
-      date: date.toISOString(),
-      endDate: endDate?.toISOString(),
+      startDate: this.formatDateWithTimezone(startDate),
+      endDate: endDate ? this.formatDateWithTimezone(endDate) : undefined,
       location: location || "Non spécifié",
       department: department || 0,
       type: type || "Non spécifié",
       status: status as "registration" | "ongoing" | "finished",
       url,
       maxPlayers,
-      currentPlayers,
-      registrationDeadline: registrationDeadline?.toISOString(),
+      registrationDeadline: registrationDeadline
+        ? this.formatDateWithTimezone(registrationDeadline)
+        : undefined,
       // Nouvelles propriétés étendues
       address,
       rounds,
@@ -387,7 +386,157 @@ export class FFEScraper {
   }
 
   /**
-   * Parse une date depuis le texte
+   * Parse une plage de dates depuis le texte
+   * Retourne startDate et endDate (endDate seulement si différente de startDate)
+   */
+  private parseDateRange(
+    dateText: string,
+    yearHint?: number
+  ): { startDate: Date; endDate?: Date } {
+    if (!dateText) {
+      const fallbackDate = new Date();
+      return { startDate: fallbackDate };
+    }
+
+    // Format complet avec plage: "dimanche 28 septembre 2025 - dimanche 5 octobre 2025"
+    const fullDateRangeFormat =
+      /(\w+)\s+(\d{1,2})\s+(\w+)\s+(\d{4})\s*-\s*(\w+)\s+(\d{1,2})\s+(\w+)\s+(\d{4})/;
+    const fullDateRangeMatch = dateText.match(fullDateRangeFormat);
+
+    if (fullDateRangeMatch) {
+      const startDay = parseInt(fullDateRangeMatch[2]);
+      const startMonthText = fullDateRangeMatch[3].toLowerCase();
+      const startYear = parseInt(fullDateRangeMatch[4]);
+      const startMonth = this.getMonthFromText(startMonthText);
+
+      const endDay = parseInt(fullDateRangeMatch[6]);
+      const endMonthText = fullDateRangeMatch[7].toLowerCase();
+      const endYear = parseInt(fullDateRangeMatch[8]);
+      const endMonth = this.getMonthFromText(endMonthText);
+
+      if (startMonth !== undefined && endMonth !== undefined) {
+        const startDate = new Date(startYear, startMonth, startDay);
+        const endDate = new Date(endYear, endMonth, endDay);
+
+        // Ne retourner endDate que si elle est différente de startDate
+        if (startDate.getTime() !== endDate.getTime()) {
+          return { startDate, endDate };
+        } else {
+          return { startDate };
+        }
+      }
+    }
+
+    // Format français avec plage: "24 avr. - 26 avr." ou "24 avril - 26 avril"
+    const frenchRangeFormat = /(\d{1,2})\s+(\w+\.?)\s*-\s*(\d{1,2})\s+(\w+\.?)/;
+    const frenchRangeMatch = dateText.match(frenchRangeFormat);
+
+    if (frenchRangeMatch) {
+      const startDay = parseInt(frenchRangeMatch[1]);
+      const startMonthText = frenchRangeMatch[2].toLowerCase();
+      const startMonth = this.getMonthFromText(startMonthText);
+
+      const endDay = parseInt(frenchRangeMatch[3]);
+      const endMonthText = frenchRangeMatch[4].toLowerCase();
+      const endMonth = this.getMonthFromText(endMonthText);
+
+      if (startMonth !== undefined && endMonth !== undefined) {
+        // Utiliser l'année du hint si disponible
+        const year = yearHint || new Date().getFullYear();
+        const startDate = new Date(year, startMonth, startDay);
+        const endDate = new Date(year, endMonth, endDay);
+
+        // Ne retourner endDate que si elle est différente de startDate
+        if (startDate.getTime() !== endDate.getTime()) {
+          return { startDate, endDate };
+        } else {
+          return { startDate };
+        }
+      }
+    }
+
+    // Format simple: une seule date
+    const singleDate = this.parseDate(dateText, yearHint);
+    return { startDate: singleDate };
+  }
+
+  /**
+   * Formate une date avec le fuseau horaire français (Europe/Paris)
+   */
+  private formatDateWithTimezone(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+
+    // Déterminer si c'est l'heure d'été (DST) en France
+    const isDST = this.isDaylightSavingTime(date);
+    const timezoneOffset = isDST ? "+02:00" : "+01:00";
+
+    return `${year}-${month}-${day}T00:00:00${timezoneOffset}`;
+  }
+
+  /**
+   * Détermine si une date est en heure d'été (DST) en France
+   * DST en France : dernier dimanche de mars à dernier dimanche d'octobre
+   */
+  private isDaylightSavingTime(date: Date): boolean {
+    const year = date.getFullYear();
+
+    // Dernier dimanche de mars
+    const marchLastSunday = this.getLastSundayOfMonth(year, 2); // mois 2 = mars (0-indexé)
+
+    // Dernier dimanche d'octobre
+    const octoberLastSunday = this.getLastSundayOfMonth(year, 9); // mois 9 = octobre (0-indexé)
+
+    return date >= marchLastSunday && date < octoberLastSunday;
+  }
+
+  /**
+   * Trouve le dernier dimanche d'un mois donné
+   */
+  private getLastSundayOfMonth(year: number, month: number): Date {
+    // Dernier jour du mois
+    const lastDay = new Date(year, month + 1, 0);
+
+    // Trouver le dernier dimanche
+    const dayOfWeek = lastDay.getDay(); // 0 = dimanche, 1 = lundi, etc.
+    const daysToSubtract = dayOfWeek === 0 ? 0 : dayOfWeek; // Si c'est déjà dimanche, on soustrait 0
+
+    return new Date(year, month, lastDay.getDate() - daysToSubtract);
+  }
+
+  /**
+   * Extrait le numéro du mois depuis le texte français
+   */
+  private getMonthFromText(monthText: string): number | undefined {
+    const monthMap: { [key: string]: number } = {
+      "janv.": 0,
+      janvier: 0,
+      "févr.": 1,
+      février: 1,
+      mars: 2,
+      "avr.": 3,
+      avril: 3,
+      mai: 4,
+      juin: 5,
+      "juil.": 6,
+      juillet: 6,
+      août: 7,
+      "sept.": 8,
+      septembre: 8,
+      "oct.": 9,
+      octobre: 9,
+      "nov.": 10,
+      novembre: 10,
+      "déc.": 11,
+      décembre: 11,
+    };
+
+    return monthMap[monthText.toLowerCase()];
+  }
+
+  /**
+   * Parse une date depuis le texte (méthode legacy pour compatibilité)
    */
   private parseDate(dateText: string, yearHint?: number): Date {
     if (!dateText) return new Date();
@@ -422,9 +571,9 @@ export class FFEScraper {
 
     if (fullDateMatch) {
       const day = parseInt(fullDateMatch[2]);
-      const monthText = fullDateMatch[3].toLowerCase();
+      const monthText = fullDateMatch[3];
       const year = parseInt(fullDateMatch[4]);
-      const month = monthMap[monthText];
+      const month = this.getMonthFromText(monthText);
 
       if (month !== undefined) {
         return new Date(year, month, day);
@@ -437,8 +586,8 @@ export class FFEScraper {
 
     if (frenchMatch) {
       const day = parseInt(frenchMatch[1]);
-      const monthText = frenchMatch[2].toLowerCase();
-      const month = monthMap[monthText];
+      const monthText = frenchMatch[2];
+      const month = this.getMonthFromText(monthText);
 
       if (month !== undefined) {
         // Si on a un hint d'année (depuis les lignes de titre), l'utiliser directement
@@ -689,31 +838,6 @@ export class FFEScraper {
     return undefined;
   }
 
-  private extractCurrentPlayers($: cheerio.Root): number | undefined {
-    const currentPlayersSelectors = [
-      ".current-players",
-      ".joueurs-inscrits",
-      ".inscrits",
-      "td:contains('inscrit')",
-      "th:contains('inscrit')",
-      "td:contains('participant')",
-      "th:contains('participant')",
-    ];
-
-    for (const selector of currentPlayersSelectors) {
-      const element = $(selector);
-      if (element.length > 0) {
-        const text = element.text().trim();
-        const match = text.match(/(\d+)/);
-        if (match) {
-          return parseInt(match[1]);
-        }
-      }
-    }
-
-    return undefined;
-  }
-
   private extractRegistrationDeadline($: cheerio.Root): Date | undefined {
     const deadlineSelectors = [
       ".registration-deadline",
@@ -727,31 +851,6 @@ export class FFEScraper {
     ];
 
     for (const selector of deadlineSelectors) {
-      const element = $(selector);
-      if (element.length > 0) {
-        const text = element.text().trim();
-        const date = this.parseDate(text);
-        if (date && date.getTime() !== new Date().getTime()) {
-          return date;
-        }
-      }
-    }
-
-    return undefined;
-  }
-
-  private extractEndDate($: cheerio.Root): Date | undefined {
-    const endDateSelectors = [
-      ".end-date",
-      ".date-fin",
-      ".fin",
-      "td:contains('Fin')",
-      "th:contains('Fin')",
-      "td:contains('jusqu')",
-      "td:contains('au')",
-    ];
-
-    for (const selector of endDateSelectors) {
       const element = $(selector);
       if (element.length > 0) {
         const text = element.text().trim();

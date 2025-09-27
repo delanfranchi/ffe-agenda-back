@@ -63,13 +63,14 @@ export async function GET(request: NextRequest) {
     // Filtrer les événements à venir (toujours actif)
     const now = new Date();
     const filteredTournaments = allTournaments.filter((tournament) => {
-      const tournamentDate = new Date(tournament.date);
+      const tournamentDate = new Date(tournament.startDate);
       return tournamentDate >= now;
     });
 
     // Trier par date (ordre croissant - les plus proches en premier)
     filteredTournaments.sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+      (a, b) =>
+        new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
     );
 
     const response: TournamentListResponse = {

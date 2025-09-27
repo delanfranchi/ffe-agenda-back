@@ -20,8 +20,8 @@ export interface ResultsLinks {
 export interface Tournament {
   id: string;
   name: string;
-  date: string; // ISO format
-  endDate?: string; // ISO format
+  startDate: string; // ISO format - date de début
+  endDate?: string; // ISO format - date de fin (seulement si différente de startDate)
   location: string;
   department: number;
   type: string;
@@ -29,7 +29,6 @@ export interface Tournament {
   url: string;
   players?: Player[];
   maxPlayers?: number;
-  currentPlayers?: number;
   registrationDeadline?: string; // ISO format
   // Nouvelles propriétés étendues
   address?: string;
