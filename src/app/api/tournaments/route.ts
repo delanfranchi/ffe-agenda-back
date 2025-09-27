@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { FFEScraper } from "@/services/ffescraper";
 import { ApiResponse, Tournament, TournamentListResponse } from "@/types/chess";
 
-// Cache pour 20 heures (72000 secondes)
+// Cache pour 20 heures (72000 secondes) - aligné avec la fréquence de mise à jour FFE
 export const revalidate = 72000;
 
 /**
@@ -80,11 +80,24 @@ export async function GET(request: NextRequest) {
       lastUpdated: new Date().toISOString(),
     };
 
-    return NextResponse.json<ApiResponse<TournamentListResponse>>({
+    const apiResponse = NextResponse.json<ApiResponse<TournamentListResponse>>({
       success: true,
       data: response,
       lastUpdated: new Date().toISOString(),
     });
+
+    // Ajouter des headers de cache HTTP
+    apiResponse.headers.set(
+      "Cache-Control",
+      "public, s-maxage=36000, stale-while-revalidate=144000"
+    );
+    apiResponse.headers.set("CDN-Cache-Control", "public, s-maxage=36000");
+    apiResponse.headers.set(
+      "Vercel-CDN-Cache-Control",
+      "public, s-maxage=36000"
+    );
+
+    return apiResponse;
   } catch (error) {
     console.error("Error in tournaments API:", error);
 

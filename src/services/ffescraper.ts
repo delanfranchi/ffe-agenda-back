@@ -10,25 +10,63 @@ export class FFEScraper {
   private baseUrl = "https://www.echecs.asso.fr";
   private userAgent = "ChessAgenda/1.0 (https://github.com/chess-agenda)";
 
+  // Cache en mémoire pour les tournois
+  private tournamentCache = new Map<
+    string,
+    { data: Tournament; timestamp: number }
+  >();
+  private tournamentIdsCache = new Map<
+    number,
+    { data: string[]; timestamp: number }
+  >();
+
+  // TTL du cache (20 heures) - aligné avec la fréquence de mise à jour FFE
+  private readonly CACHE_TTL = 20 * 60 * 60 * 1000;
+
   /**
    * Récupère la liste des tournois pour un département donné
+   * Nouvelle approche : extraire les IDs depuis ListeTournois.aspx puis récupérer les détails en parallèle
    */
   async getTournamentsByDepartment(department: number): Promise<Tournament[]> {
-    const url = `${this.baseUrl}/ListeTournois.aspx?Action=TOURNOICOMITE&ComiteRef=${department}`;
-
     try {
-      const response = await fetch(url, {
-        headers: {
-          "User-Agent": this.userAgent,
-        },
+      // 1. Récupérer les IDs des tournois depuis la page du comité (avec cache)
+      const tournamentIds = await this.getTournamentIdsFromComite(department);
+
+      // 2. Récupérer les détails de chaque tournoi EN PARALLÈLE (sans joueurs pour optimiser)
+      const tournamentPromises = tournamentIds.map(async (tournamentId) => {
+        try {
+          const tournamentDetails = await this.getTournamentDetails(
+            tournamentId,
+            false
+          );
+          const tournament = tournamentDetails.tournament;
+
+          // 3. Filtrer les événements passés de plus de 2 jours
+          if (this.isTournamentRecent(tournament)) {
+            // Exclure uniquement les joueurs pour alléger la réponse
+            // Garder toutes les autres données (adresse, organisateur, prix, etc.)
+            const { players, ...tournamentWithoutPlayers } = tournament;
+            return tournamentWithoutPlayers;
+          }
+          return null;
+        } catch (error) {
+          console.warn(
+            `Failed to fetch details for tournament ${tournamentId}:`,
+            error
+          );
+          return null;
+        }
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      // 4. Attendre toutes les requêtes en parallèle
+      const tournamentResults = await Promise.all(tournamentPromises);
 
-      const html = await response.text();
-      return this.parseTournamentsList(html);
+      // 5. Filtrer les résultats null
+      const tournaments = tournamentResults.filter(
+        (tournament): tournament is Tournament => tournament !== null
+      );
+
+      return tournaments;
     } catch (error) {
       console.error(
         `Error fetching tournaments for department ${department}:`,
@@ -39,11 +77,20 @@ export class FFEScraper {
   }
 
   /**
-   * Récupère les détails d'un tournoi spécifique
+   * Récupère les détails d'un tournoi spécifique (avec cache)
    */
   async getTournamentDetails(
-    tournamentId: string
+    tournamentId: string,
+    withPlayers: boolean = true
   ): Promise<TournamentDetailsResponse> {
+    // Vérifier le cache
+    const cached = this.tournamentCache.get(tournamentId);
+    if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
+      return {
+        tournament: cached.data,
+        lastUpdated: new Date(cached.timestamp).toISOString(),
+      };
+    }
     const tournamentUrl = `${this.baseUrl}/FicheTournoi.aspx?Ref=${tournamentId}`;
 
     try {
@@ -66,18 +113,29 @@ export class FFEScraper {
 
       // Récupérer la liste des joueurs (optionnel)
       let players: Player[] = [];
-      try {
-        players = await this.getTournamentPlayers(tournamentId);
-      } catch {
-        // Si la récupération des joueurs échoue, continuer sans joueurs
-        // Pas de log pour éviter de flooder
+      if (withPlayers) {
+        try {
+          players = await this.getTournamentPlayers(tournamentId);
+        } catch {
+          // Si la récupération des joueurs échoue, continuer sans joueurs
+          // Pas de log pour éviter de flooder
+        }
       }
 
+      const tournamentWithPlayers = {
+        ...tournament,
+        players,
+      };
+
+      // Mettre en cache (sans joueurs pour la liste)
+      const { players: _, ...tournamentForCache } = tournamentWithPlayers;
+      this.tournamentCache.set(tournamentId, {
+        data: tournamentForCache,
+        timestamp: Date.now(),
+      });
+
       return {
-        tournament: {
-          ...tournament,
-          players,
-        },
+        tournament: tournamentWithPlayers,
         lastUpdated: new Date().toISOString(),
       };
     } catch (error) {
@@ -87,6 +145,92 @@ export class FFEScraper {
       );
       throw error;
     }
+  }
+
+  /**
+   * Récupère les IDs des tournois depuis la page de liste des tournois du comité (avec cache)
+   */
+  private async getTournamentIdsFromComite(
+    department: number
+  ): Promise<string[]> {
+    // Vérifier le cache
+    const cached = this.tournamentIdsCache.get(department);
+    if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
+      return cached.data;
+    }
+
+    const comiteUrl = `${this.baseUrl}/ListeTournois.aspx?Action=TOURNOICOMITE&ComiteRef=${department}`;
+
+    try {
+      const response = await fetch(comiteUrl, {
+        headers: {
+          "User-Agent": this.userAgent,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const html = await response.text();
+      const tournamentIds = this.parseTournamentIdsFromComite(html);
+
+      // Mettre en cache
+      this.tournamentIdsCache.set(department, {
+        data: tournamentIds,
+        timestamp: Date.now(),
+      });
+
+      return tournamentIds;
+    } catch (error) {
+      console.error(
+        `Error fetching tournament list for department ${department}:`,
+        error
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Parse les IDs des tournois depuis la page de liste des tournois
+   */
+  private parseTournamentIdsFromComite(html: string): string[] {
+    const $ = cheerio.load(html);
+    const tournamentIds: string[] = [];
+
+    // Chercher les liens vers les tournois dans la page du comité
+    // Format attendu : FicheTournoi.aspx?Ref=12345
+    $('a[href*="FicheTournoi.aspx?Ref="]').each((_index, element) => {
+      const href = $(element).attr("href");
+      if (href) {
+        const match = href.match(/FicheTournoi\.aspx\?Ref=(\d+)/);
+        if (match && match[1]) {
+          const tournamentId = match[1];
+          // Éviter les doublons
+          if (!tournamentIds.includes(tournamentId)) {
+            tournamentIds.push(tournamentId);
+          }
+        }
+      }
+    });
+
+    return tournamentIds;
+  }
+
+  /**
+   * Vérifie si un tournoi est récent (pas passé de plus de 2 jours)
+   */
+  private isTournamentRecent(tournament: Tournament): boolean {
+    const now = new Date();
+    const twoDaysAgo = new Date(now);
+    twoDaysAgo.setDate(now.getDate() - 2);
+
+    // Utiliser la date de fin si disponible, sinon la date de début
+    const endDate = tournament.endDate
+      ? new Date(tournament.endDate)
+      : new Date(tournament.startDate);
+
+    return endDate >= twoDaysAgo;
   }
 
   /**
